@@ -1,4 +1,5 @@
 from omni.isaac.kit import SimulationApp
+import sys
 import os
 import math
 import numpy as np
@@ -6,24 +7,32 @@ import numpy as np
 # 1. 시뮬레이션 앱 초기화
 simulation_app = SimulationApp({"headless": False}) 
 
+# root_path를 utils 폴더 내부까지 직접 지정
+controller_path = "/home/rokey/Desktop/DTHRC/DTHRC/utils/controller"
+tasks_path = "/home/rokey/Desktop/DTHRC/DTHRC/utils/tasks"
+
+sys.path.insert(0, controller_path)
+sys.path.insert(0, tasks_path)
+
+# 이제 'utils.' 없이 바로 파일 이름으로 호출
+
 import omni
 from isaacsim.sensors.physx import _range_sensor
 from pxr import UsdGeom, Gf, Usd, UsdShade
 from omni.isaac.core.utils.semantics import add_update_semantics
 from omni.isaac.core import World
-
-from controller.rmpflow import RMPFlowController # RMPFlow 컨트롤러
-from tasks.follow_target import FollowTarget # 대상 추적 태스크
+from rmpflow import RMPFlowController
+from follow_target import FollowTargetCustom
 
 # --- 설정 및 경로 ---
-usd_path = "/home/rokey/Desktop/DTHRC/env_default.usd"
+usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_default.usd"
 robot_path = "/World/ur10e"
 lidar_full_path = f"{robot_path}/LidarName"
 human_path = "/World/male"
 danger_path = "/World/danger"
 
 # --- 전역 변수 및 상태 제어 ---
-is_robot_stopped = False
+
 
 # --- 함수 정의 ---
 
@@ -44,13 +53,13 @@ def safety_logic(min_dist):
     global is_robot_stopped
     if min_dist < 1.4:
         change_color(1.0, 0.0, 0.0) # 빨간색
-        is_robot_stopped = True     # 로봇 정지 활성화
+  
     elif min_dist < 2.2:
         change_color(1.0, 1.0, 0.0) # 노란색
-        is_robot_stopped = False    # 주의 단계(감속 로직 등을 넣을 수 있음)
+  
     else:
         change_color(0.0, 0.0, 1.0) # 파란색
-        is_robot_stopped = False
+ 
 
 # --- 환경 구축 ---
 
@@ -67,15 +76,16 @@ timeline = omni.timeline.get_timeline_interface()
 lidarInterface = _range_sensor.acquire_lidar_sensor_interface()
 
 # 1. 로봇 태스크 및 컨트롤러 설정
-my_task = FollowTarget(
-    name="ur10e_follow_target",
-    target_position=np.array([0.5, 0, 0.5]),
-    robot_prim_path=robot_path,
-    attach_robot=True)
+my_task = FollowTargetCustom(
+    name="bolt",
+    target_position=np.array([1.0, 0, 0.9]),
+    robot_prim_path=robot_path
+    # attach_robot=True
+    )
 my_world.add_task(my_task)
 my_world.reset()
 
-task_params = my_world.get_task("ur10e_follow_target").get_params()
+task_params = my_world.get_task("bolt").get_params()
 target_name = task_params["target_name"]["value"]
 ur10e_name = task_params["robot_name"]["value"]
 my_ur10e = my_world.scene.get_object(ur10e_name)
@@ -120,19 +130,18 @@ try:
                     safety_logic(min_dist)
                 else:
                     change_color(0.0, 0.0, 1.0) # 사람 안 보이면 파랑
-                    is_robot_stopped = False
 
             # 로봇 동작 제어
-            if not is_robot_stopped:
-                observations = my_world.get_observations()
-                actions = my_controller.forward(
-                    target_end_effector_position=observations[target_name]["position"],
-                    target_end_effector_orientation=observations[target_name]["orientation"],
-                )
-                articulation_controller.apply_action(actions)
-            else:
-                # 로봇 정지: 모든 관절 속도를 0으로
-                articulation_controller.apply_action(np.zeros(my_ur10e.num_dof))
+            
+            observations = my_world.get_observations()
+            actions = my_controller.forward(
+                target_end_effector_position=observations[target_name]["position"],
+                target_end_effector_orientation=observations[target_name]["orientation"],
+            )
+            articulation_controller.apply_action(actions)
+            # else:
+            #     # 로봇 정지: 모든 관절 속도를 0으로
+            #     articulation_controller.apply_action(np.zeros(my_ur10e.num_dof))
 
             # 사람 이동 (사인 함수 왕복)
             if human_prim.IsValid():
