@@ -21,8 +21,8 @@ from isaacsim.robot.manipulators.examples.universal_robots.controllers.pick_plac
 
 class Tutorial_UR10:
     def __init__(self) -> None:
-
-        self._world = World(stage_units_in_meters=1.0)
+        self.usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
+        self._world = None
         self._placing_position = np.array([0.7, 0.7, 0.0515 / 2.0])
         self._end_effector_offset = np.array([0, 0, 0.02])
         self._task_done = False
@@ -35,9 +35,13 @@ class Tutorial_UR10:
 
     
     def setup_scene(self):
-        """�ъ쓣 �ㅼ젙�⑸땲�� (濡쒕큸, �먮툕, �섍꼍 ��)."""
-        self._world.scene.add_default_ground_plane()
-
+        import os
+        import omni.usd
+        if os.path.exists(self.usd_path):
+            omni.usd.get_context().open_stage(self.usd_path)
+        else:
+            raise FileNotFoundError(f"USD file not found at {self.usd_path}")
+        self._world = World(stage_units_in_meters=1.0, physics_dt=1/200, rendering_dt=20/200)
         assets_root_path = get_assets_root_path()
         if assets_root_path is None:
             carb.log_error("Could not find Isaac Sim assets folder")
