@@ -17,7 +17,7 @@ from tasks.follow_target import FollowTarget # 대상 추적 태스크
 
 # --- 설정 및 경로 ---
 usd_path = "/home/rokey/Desktop/DTHRC/env_default.usd"
-robot_path = "/World/ur10e"
+robot_path = "/World/ur10"
 lidar_full_path = f"{robot_path}/LidarName"
 human_path = "/World/male"
 danger_path = "/World/danger"
@@ -68,20 +68,20 @@ lidarInterface = _range_sensor.acquire_lidar_sensor_interface()
 
 # 1. 로봇 태스크 및 컨트롤러 설정
 my_task = FollowTarget(
-    name="ur10e_follow_target",
+    name="ur10_follow_target",
     target_position=np.array([0.5, 0, 0.5]),
     robot_prim_path=robot_path,
     attach_robot=True)
 my_world.add_task(my_task)
 my_world.reset()
 
-task_params = my_world.get_task("ur10e_follow_target").get_params()
+task_params = my_world.get_task("ur10_follow_target").get_params()
 target_name = task_params["target_name"]["value"]
-ur10e_name = task_params["robot_name"]["value"]
-my_ur10e = my_world.scene.get_object(ur10e_name)
+ur10_name = task_params["robot_name"]["value"]
+my_ur10 = my_world.scene.get_object(ur10_name)
 
-my_controller = RMPFlowController(name="target_follower_controller", robot_articulation=my_ur10e)
-articulation_controller = my_ur10e.get_articulation_controller()
+my_controller = RMPFlowController(name="target_follower_controller", robot_articulation=my_ur10)
+articulation_controller = my_ur10.get_articulation_controller()
 
 # 2. LiDAR 및 세맨틱 설정
 omni.kit.commands.execute("RangeSensorCreateLidar",    
@@ -132,7 +132,7 @@ try:
                 articulation_controller.apply_action(actions)
             else:
                 # 로봇 정지: 모든 관절 속도를 0으로
-                articulation_controller.apply_action(np.zeros(my_ur10e.num_dof))
+                articulation_controller.apply_action(np.zeros(my_ur10.num_dof))
 
             # 사람 이동 (사인 함수 왕복)
             if human_prim.IsValid():

@@ -38,7 +38,8 @@ def _bbox_lines_world(camera_sensor, bbox, depth_m):
 
 
 def main():
-    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_default.usd"
+    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
+    
     
     # 1. 환경 관리자 초기화
     env = EnvManager(usd_path)
