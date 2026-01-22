@@ -7,21 +7,29 @@ from isaacsim.sensors.physx import _range_sensor
 from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
+from core.pick_n_place import RobotController
 
 def main():
-    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_default.usd"
+    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
+    robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
     
     # 1. 환경 관리자 초기화
-    env = EnvManager(usd_path)
+    env = EnvManager(usd_path, robot_usd_path)
     env.setup_physics()
     
     stage = env.stage
+    my_world = env.world # EnvManager의 world 가져오기
+    my_robot = env.robot # EnvManager에서 생성된 로봇 가져오기
+
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
 
     # 2. 각 모듈 초기화
     safety = SafetyManager(stage, lidar_interface)
     human_control = HumanController(stage, "/World/male")
+    print("제어기 가져오기 전")
+    robot_controller = RobotController(my_world, my_robot)
+    print("제어기 가져오기 후")
 
     # 3. 루프 변수
     timeline.play()
@@ -54,6 +62,7 @@ def main():
 
                 # 사람 이동 업데이트
                 human_control.move_human(current_time)
+                robot_controller.control_robot()
 
             frame_count += 1
 
