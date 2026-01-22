@@ -22,7 +22,7 @@ from isaacsim.robot.manipulators.examples.universal_robots.controllers.pick_plac
 class Tutorial_UR10:
     def __init__(self) -> None:
         self.usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
-        self._world = None
+        self._world = World(stage_units_in_meters=1.0)
         self._placing_position = np.array([0.7, 0.7, 0.0515 / 2.0])
         self._end_effector_offset = np.array([0, 0, 0.02])
         self._task_done = False
@@ -55,9 +55,10 @@ class Tutorial_UR10:
         )
         ur10 = self._world.scene.add(
             SingleManipulator(
-                prim_path="/World/UR10", name="my_ur10", end_effector_prim_path="/World/UR10/ee_link", gripper=gripper
+                prim_path="/World/UR10", name="my_ur10", end_effector_prim_path="/World/UR10/ee_link", gripper=gripper, position = np.array([0.0, -0.54194, 0.8])
             )
         )
+        ur10.set_default_state(position = np.array([0.0, -0.54194, 0.8]))
         ur10.set_joints_default_state(positions=np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0]))
 
         self._world.scene.add(
