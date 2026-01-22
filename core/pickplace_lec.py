@@ -14,6 +14,7 @@ from isaacsim.robot.manipulators import SingleManipulator
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
 from isaacsim.storage.native import get_assets_root_path
 from isaacsim.core.api.world import World
+from isaacsim.core.prims import GeometryPrim, RigidPrim
 
 
 from isaacsim.robot.manipulators.examples.universal_robots.controllers.pick_place_controller import PickPlaceController
@@ -48,7 +49,10 @@ class Tutorial_UR10:
             sys.exit()
 
         asset_path = assets_root_path + "/Isaac/Robots/UniversalRobots/ur10/ur10.usd"
+        # bolt_asset_path = assets_root_path + "/Isaac/Props/Factory/factory_bolt_m20_loose.usd"
+        bolt_asset_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose.usd"
         robot = add_reference_to_stage(usd_path=asset_path, prim_path="/World/UR10")
+        add_reference_to_stage(usd_path=bolt_asset_path, prim_path="/World/Bolt")
         robot.GetVariantSet("Gripper").SetVariantSelection("Short_Suction")
         gripper = SurfaceGripper(
             end_effector_prim_path="/World/UR10/ee_link", surface_gripper_path="/World/UR10/ee_link/SurfaceGripper"
@@ -61,6 +65,13 @@ class Tutorial_UR10:
         ur10.set_default_state(position = np.array([0.0, -0.54194, 0.8]))
         ur10.set_joints_default_state(positions=np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0]))
 
+        self._world.scene.add(
+            RigidPrim(
+                prim_paths_expr="/World/Bolt",
+                name = "my_bolt",
+                positions = np.array([[1.0, 0.2, 0.9]])
+            )
+        )
         self._world.scene.add(
             DynamicCuboid(
                 name="cube",
@@ -76,7 +87,7 @@ class Tutorial_UR10:
     def setup_post_load(self):
         self._world.reset()
         self.robots = self._world.scene.get_object("my_ur10")
-        self.cube = self._world.scene.get_object("cube")
+        self.bolt = self._world.scene.get_object("my_bolt")
         self.my_controller = PickPlaceController(
             name="pick_place_controller", 
             gripper=self.robots.gripper, 
@@ -85,7 +96,7 @@ class Tutorial_UR10:
         self.articulation_controller = self.robots.get_articulation_controller()
 
     def physics_step(self):
-        picking_position = self.cube.get_world_pose()[0]
+        picking_position = self.bolt.get_world_poses()[0][0]
 
         actions = self.my_controller.forward(
             picking_position=picking_position,
