@@ -3,6 +3,11 @@ from pxr import Gf, Usd, Sdf
 import numpy as np
 from isaacsim.robot.manipulators import SingleManipulator
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
+from omni.isaac.core.utils.stage import add_reference_to_stage
+#from omni.isaac.core.prims import RigidPrim
+from omni.isaac.core.utils.rotations import euler_angles_to_quat
+
+from isaacsim.core.prims import GeometryPrim, RigidPrim
 
 class EnvManager:
     def __init__(self, usd_path=None, robot_usd_path=None):
@@ -17,15 +22,15 @@ class EnvManager:
 
         # 1. World 초기화 (물리 및 렌더링 시간 설정)
         self.world = World(stage_units_in_meters=1.0, physics_dt=1/200, rendering_dt=20/200)
-        
         self.stage = omni.usd.get_context().get_stage()
         # 3. Scene 초기화를 위해 반드시 reset() 수행
         #self.world.reset()
+        
+        ## 주석
+        # self.world.reset()
 
-        self.world.reset()
-
-        if self.robot_usd_path:
-            self.add_robot(robot_usd_path)
+        # if self.robot_usd_path:
+        #     self.add_robot(robot_usd_path)
         
 
         # self.robot = None
@@ -40,48 +45,71 @@ class EnvManager:
         
     
 
-    def add_robot(self, robot_usd_path, prim_path="/World/ur10", name="ur10", position=np.array([0.0, -0.54194, 0.8])):
+    def add_robot(self, robot_usd_path, prim_path="/World/UR10", name="my_ur10", position=np.array([0.0, -0.54194, 1.0])):
         """
         특정 USD 경로에서 로봇을 불러와 환경에 추가합니다.
         """
-        from omni.isaac.core.utils.stage import add_reference_to_stage
-        
+        robot_usd_path1 = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
         # 1. Stage에 로봇 USD 참조 추가
         robot = add_reference_to_stage(usd_path=robot_usd_path, prim_path=prim_path)
         robot.GetVariantSet("Gripper").SetVariantSelection("Short_Suction")
-        
-        # 2. Robot 객체로 생성 (Articulation 기능 포함)
-        # self.robot = Robot(prim_path=prim_path, name=name)
+
+        # 2. 로봇 위치 설정 (값이 있을 경우)
+        if position is not None:
+            self.robot_position = position
 
         gripper = SurfaceGripper(
-            end_effector_prim_path="/World/ur10/ee_link",
-            surface_gripper_path="/World/ur10/ee_link/SurfaceGripper"
+            end_effector_prim_path="/World/UR10/ee_link", 
+            surface_gripper_path="/World/UR10/ee_link/SurfaceGripper"
         )
-        ur10 = SingleManipulator(
-                prim_path="/World/ur10", name="ur10", end_effector_prim_path="/World/ur10/ee_link", gripper = gripper)
+
+        ur10 = self.world.scene.add(
+            SingleManipulator(
+                prim_path="/World/UR10", 
+                name="my_ur10", 
+                end_effector_prim_path="/World/UR10/ee_link", 
+                gripper=gripper, 
+                position =  self.robot_position
+            ))
             
-        
-        self.world.scene.add(ur10)
-        
+        ur10.set_default_state(position = self.robot_position)
         ur10.set_joints_default_state(positions=np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0]))
 
-        
-        # 3. 위치 설정 (값이 있을 경우)
-        if position is not None:
-            # self.robot.set_world_pose(position=np.array(position))
-            ur10.set_world_pose(position=np.array(position))
-            
-        # # 4. World Scene에 로봇 등록
-        # self.world.scene.add(self.robot)
-        
-        # print(f"Robot loaded at: {prim_path}")
-        # return self.robot
         # 클래스 외부에서도 접근할 수 있도록 인스턴스 변수에 할당
-        self.robot = ur10
-        
+        #self.robot = ur10
+        self.robot = self.world.scene.get_object(ur10)
+
         print(f"Robot loaded at: {prim_path}")
         return self.robot
+    
+    def add_bolt(self, bolt_usd_path, position=np.array([0.7931, -0.36331, 0.88053])):
+        add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
+        # bolt = RigidPrim(
+        #     prim_paths_expr="/World/Bolt",
+        #     name="my_bolt",
+        #     positions=position,
+        #     scales=np.array([[2, 2, 2]]),
+        #     orientations=np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
+        # )
+        # self.world.scene.add(bolt)
+        # self.world.scene.add(
+        #     RigidPrim(
+        #         prim_path="/World/Bolt",
+        #         name = "my_bolt",
+        #         position = np.array([0.7931, -0.36331, 0.88053]),
+        #         scale = np.array([2, 2, 2]),
+        #         orientation = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
+        #     )
+        # )
 
-    def setup_physics(self):
-        # World 객체가 이미 물리 설정을 관리하므로, 필요시 추가 커스텀 설정만 수행합니다.
-        pass
+        self.world.scene.add(
+            RigidPrim(
+                prim_paths_expr="/World/Bolt",
+                name = "my_bolt",
+                positions = np.array([[0.7931, -0.36331, 0.88053]]),
+                scales = np.array([[2, 2, 2]]),
+                orientations = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
+            )
+        )
+
+        # return bolt

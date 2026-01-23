@@ -7,28 +7,34 @@ from isaacsim.sensors.physx import _range_sensor
 from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
-from core.pick_n_place import RobotController
+from core.pick_and_place import RobotController
+import numpy as np
 
 def main():
     usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
     robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
+    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose.usd"
+    
     
     # 1. 환경 관리자 초기화
     env = EnvManager(usd_path, robot_usd_path)
-    env.setup_physics()
+    # env.setup_physics()
     
     stage = env.stage
     my_world = env.world # EnvManager의 world 가져오기
-    my_robot = env.robot # EnvManager에서 생성된 로봇 가져오기
+    my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
+    my_world.reset()
+    #my_bolt = env.add_bolt(bolt_usd_path)
+    env.add_bolt(bolt_usd_path)
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
-
+    placing_position = np.array([-1.25, -0.25047, 1.5])
     # 2. 각 모듈 초기화
     safety = SafetyManager(stage, lidar_interface)
     human_control = HumanController(stage, "/World/male")
     print("제어기 가져오기 전")
-    robot_controller = RobotController(my_world, my_robot)
+    robot_controller = RobotController(my_world, my_robot,placing_position)
     print("제어기 가져오기 후")
 
     # 3. 루프 변수
@@ -42,6 +48,8 @@ def main():
             
             if frame_count > 60:
                 current_time = timeline.get_current_time()
+
+                robot_controller.control_robot()
                 
                 # 거리 측정 및 로직 판단
                 dist = safety.get_human_distance()
