@@ -2,10 +2,16 @@
 from omni.isaac.kit import SimulationApp
 simulation_app = SimulationApp({"headless": False})
 
-from isaacsim.util.debug_draw import _debug_draw
-
 import omni
 from isaacsim.sensors.physx import _range_sensor
+from core.env import EnvManager
+from core.safety import SafetyManager
+from core.move import HumanController
+from core.pick_and_place import RobotController
+import numpy as np
+
+# yolo 관련 import
+from isaacsim.util.debug_draw import _debug_draw
 from pxr import Gf, UsdShade, Sdf
 from core.bolt_nut import Bolt, Nut
 from core.utils import bbox_lines_world, find_bolt_prim, get_world_translation
@@ -14,9 +20,7 @@ from core.safety import SafetyManager
 from core.move import HumanController
 from core.perception import Camera
 from core.yolo import YoloDetector
-
 BOLT_PRIM_PATH = None
-
 
 def _get_or_create_material(stage, material_path, color):
     material = UsdShade.Material.Define(stage, material_path)
@@ -34,17 +38,25 @@ def _bind_material_to_prim(stage, prim_path, material):
     if prim.IsValid():
         UsdShade.MaterialBindingAPI(prim).Bind(material)
 
-
-
-
 def main():
-    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_default.usd"
+    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
+    robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
+    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose.usd"
+    
     
     # 1. 환경 관리자 초기화
-    env = EnvManager(usd_path)
-    env.setup_physics()
+    env = EnvManager(usd_path, robot_usd_path)
+    # env.setup_physics()
     
     stage = env.stage
+    my_world = env.world # EnvManager의 world 가져오기
+    my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
+    my_world.reset()
+    #my_bolt = env.add_bolt(bolt_usd_path)
+    env.add_bolt(bolt_usd_path)
+    print("1111111111111111111111111")
+
+    # yolo 볼트 추가
     bolt_builder = Bolt()
     nut_builder = Nut()
     bolt_prim = stage.GetPrimAtPath(BOLT_PRIM_PATH) if BOLT_PRIM_PATH else find_bolt_prim(stage)
@@ -57,14 +69,19 @@ def main():
     nut_builder.create(stage, hex_center)
     bolt_base_pos = hex_center + bolt_builder.offset_from_nut
     bolt_builder.create(stage, bolt_base_pos)
+
+
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
-
+    placing_position = np.array([-1.25, -0.25047, 1.5])
     # 2. 각 모듈 초기화
     safety = SafetyManager(stage, lidar_interface)
     human_control = HumanController(stage, "/World/male")
+    print("제어기 가져오기 전")
+    robot_controller = RobotController(my_world, my_robot,placing_position)
+    print("제어기 가져오기 후")
 
-    
+    # yolo 카메라
     camera_test = Camera()
     camera_test.setup_scene()
 
@@ -76,17 +93,17 @@ def main():
     timeline.play()
     frame_count = 0
 
+    # 카메라 업데이트
     for _ in range(10):
         simulation_app.update()
 
     camera_test.initialize()
 
-  
-
     try:
         while simulation_app.is_running():
             simulation_app.update()
 
+            # 카메라
             rgba_data = camera_test.step()
             if rgba_data is not None and rgba_data.size > 0:
                 results = yolo_engine.detect(rgba_data)
@@ -107,6 +124,8 @@ def main():
             
             if frame_count > 60:
                 current_time = timeline.get_current_time()
+
+                robot_controller.control_robot()
                 
                 # 거리 측정 및 로직 판단
                 dist = safety.get_human_distance()
@@ -127,6 +146,7 @@ def main():
 
                 # 사람 이동 업데이트
                 human_control.move_human(current_time)
+                robot_controller.control_robot()
 
             frame_count += 1
 
