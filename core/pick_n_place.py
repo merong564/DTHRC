@@ -14,10 +14,11 @@ from omni.isaac.core import World
 
 from controller.rmpflow import RMPFlowController # RMPFlow 컨트롤러
 from tasks.follow_target import FollowTarget # 대상 추적 태스크
+from isaacsim.robot.manipulators.grippers import SurfaceGripper
 
 # --- 설정 및 경로 ---
 usd_path = "/home/rokey/Desktop/DTHRC/env_default.usd"
-robot_path = "/World/ur10"
+robot_path = "/World/ur10e"
 lidar_full_path = f"{robot_path}/LidarName"
 human_path = "/World/male"
 danger_path = "/World/danger"
@@ -52,6 +53,22 @@ def safety_logic(min_dist):
         change_color(0.0, 0.0, 1.0) # 파란색
         is_robot_stopped = False
 
+def _find_end_effector_prim_path(stage, robot_prim_path):
+    robot_prim = stage.GetPrimAtPath(robot_prim_path)
+    if not robot_prim.IsValid():
+        return None
+    preferred_names = ("ee_link", "tool0", "tool", "flange", "wrist_3_link")
+    for prim in Usd.PrimRange(robot_prim):
+        if prim.GetName() in preferred_names:
+            return prim.GetPath().pathString
+    last_link = None
+    for prim in Usd.PrimRange(robot_prim):
+        if "link" in prim.GetName():
+            last_link = prim
+    if last_link is not None:
+        return last_link.GetPath().pathString
+    return None
+
 # --- 환경 구축 ---
 
 if os.path.exists(usd_path):
@@ -68,20 +85,32 @@ lidarInterface = _range_sensor.acquire_lidar_sensor_interface()
 
 # 1. 로봇 태스크 및 컨트롤러 설정
 my_task = FollowTarget(
-    name="ur10_follow_target",
+    name="ur10e_follow_target",
     target_position=np.array([0.5, 0, 0.5]),
     robot_prim_path=robot_path,
     attach_robot=True)
 my_world.add_task(my_task)
 my_world.reset()
 
-task_params = my_world.get_task("ur10_follow_target").get_params()
+task_params = my_world.get_task("ur10e_follow_target").get_params()
 target_name = task_params["target_name"]["value"]
-ur10_name = task_params["robot_name"]["value"]
-my_ur10 = my_world.scene.get_object(ur10_name)
+ur10e_name = task_params["robot_name"]["value"]
+my_ur10e = my_world.scene.get_object(ur10e_name)
 
-my_controller = RMPFlowController(name="target_follower_controller", robot_articulation=my_ur10)
-articulation_controller = my_ur10.get_articulation_controller()
+gripper = None
+end_effector_prim_path = _find_end_effector_prim_path(stage, robot_path)
+if end_effector_prim_path:
+    gripper = SurfaceGripper(
+        end_effector_prim_path=end_effector_prim_path,
+        surface_gripper_path=f"{end_effector_prim_path}/SurfaceGripper",
+    )
+    if hasattr(my_ur10e, "gripper"):
+        my_ur10e.gripper = gripper
+else:
+    print(f"Warning: end effector prim not found under {robot_path}, gripper not attached.")
+
+my_controller = RMPFlowController(name="target_follower_controller", robot_articulation=my_ur10e)
+articulation_controller = my_ur10e.get_articulation_controller()
 
 # 2. LiDAR 및 세맨틱 설정
 omni.kit.commands.execute("RangeSensorCreateLidar",    
@@ -132,7 +161,7 @@ try:
                 articulation_controller.apply_action(actions)
             else:
                 # 로봇 정지: 모든 관절 속도를 0으로
-                articulation_controller.apply_action(np.zeros(my_ur10.num_dof))
+                articulation_controller.apply_action(np.zeros(my_ur10e.num_dof))
 
             # 사람 이동 (사인 함수 왕복)
             if human_prim.IsValid():

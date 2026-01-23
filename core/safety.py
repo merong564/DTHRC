@@ -7,7 +7,7 @@ class SafetyManager:
     def __init__(self, stage, lidar_interface):
         self.stage = stage
         self.lidar_interface = lidar_interface
-        self.robot_path = "/World/ur10"
+        self.robot_path = "/World/ur10e"
         self.lidar_full_path = f"{self.robot_path}/LidarName"
         self.human_path = "/World/male"
         self.danger_path = "/World/danger"
