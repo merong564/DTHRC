@@ -43,52 +43,15 @@ class RMPFlowController(mg.MotionPolicyController):
         )
 
 class RobotController:
-    # def __init__(self, world, robot, bolt, placing_position):
     def __init__(self, world, robot,placing_position):
         self.world = world
         self.robot =self.world.scene.get_object("my_ur10")
-        # self.bolt = bolt
         self.bolt = self.world.scene.get_object("my_bolt")
         self.my_controller = None
         self.articulation_controller = None
         print("bolt goood")
         self.stage = world.stage
         
-        # RMPFlow 설정
-        # config = mg.interface_config_loader.load_supported_motion_policy_config("UR10", "RMPflowSuction")
-        # self.rmp_flow = mg.lula.motion_policies.RmpFlow(**config)
-        # self.physics_dt = 1/200
-        # self.articulation_rmp = mg.ArticulationMotionPolicy(self.robot, self.rmp_flow, self.physics_dt) # 원래는 SingleArticulation, 이를 self.robot으로 바꿈
-        # from isaacsim.storage.native import get_assets_root_path
-        # from isaacsim.core.utils.stage import add_reference_to_stage
-        # from isaacsim.robot.manipulators import SingleManipulator
-        # from isaacsim.robot.manipulators.grippers import SurfaceGripper
-
-        # assets_root_path = get_assets_root_path()
-        # asset_path = assets_root_path + "/Isaac/Robots/UniversalRobots/ur10/ur10.usd"
-        # # bolt_asset_path = assets_root_path + "/Isaac/Props/Factory/factory_bolt_m20_loose.usd"
-        # robot = add_reference_to_stage(usd_path=asset_path, prim_path="/World/UR10")
-        # robot.GetVariantSet("Gripper").SetVariantSelection("Short_Suction")
-        # gripper = SurfaceGripper(
-        #     end_effector_prim_path="/World/UR10/ee_link", 
-        #     surface_gripper_path="/World/UR10/ee_link/SurfaceGripper"
-        # )
-        # self.robot_position = np.array([0.0, -0.54194, 1.0])
-        # ur10 = self.world.scene.add(
-        #     SingleManipulator(
-        #         prim_path="/World/UR10", 
-        #         name="my_ur10", 
-        #         end_effector_prim_path="/World/UR10/ee_link", 
-        #         gripper=gripper, 
-        #         position = self.robot_position
-        #     )
-        # )
-        
-        # ur10.set_default_state(position = self.robot_position)
-        # ur10.set_joints_default_state(positions=np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, np.pi / 2, 0]))
-
-
-
 
 
         self.my_controller = RMPFlowController(
@@ -124,13 +87,10 @@ class RobotController:
 
         # pick 대기 시간 주기 (컨베이어 추가 시 수정 필요)
         elif self.task_phase == 2:
-            # print(f"task_phase :{self.task_phase} conveyor")
-            # x,y,z = self.bolt.get_world_poses()[0][0]
             self.task_phase = 3
 
         elif self.task_phase == 3: # 볼트로 이동
             print(f"task_phase :{self.task_phase} bolt access")
-            # target_pos = bolt_pose.copy()
             target_pos = self.bolt.get_world_poses()[0][0]       # 매순간 볼트의 위치를 가져와 타겟으로 설정
 
             target_ori = euler_angles_to_quat(np.array([0, np.pi/2, 0]))    # 그리퍼가 접근하는 각도
@@ -152,10 +112,11 @@ class RobotController:
             ee_pose = self.robot.gripper.get_world_pose()[0]
 
             print(f"task_phase :{self.task_phase} picking: bolt z up")
-            self._sync_bolt_to_gripper()  # 볼트 위치 이동
             target_pos = np.array([bolt_pose[0], bolt_pose[1], bolt_pose[2]+0.05])
             ## 추후 수정해보기: 로봇팔 움직인 후에 볼트 위치 변경
             action = self._apply_rmp_move(target_pos, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
+            
+            self._sync_bolt_to_gripper()  # 볼트 위치 이동
             
             if ee_pose[2] > 1.5:   # 로봇팔 위치가 1.5를 넘으면 다음 페이즈로 이동
                 self.task_phase = 7
@@ -169,22 +130,34 @@ class RobotController:
         
         elif self.task_phase == 7: # 목표 지점으로 이동
             print(f"task_phase :{self.task_phase} placing")
-            ee_pose = self.bolt.get_world_poses()[0][0]
-            self._sync_bolt_to_gripper()
+            bolt_pose = self.bolt.get_world_poses()[0][0]
+            #self._placing_position = 
             action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
+            self._sync_bolt_to_gripper()
+
             current_joint_positions = self.robot.get_joint_positions()
             # 원래 페이즈 변경 코드
             if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
                 self.my_controller.reset()
                 self.task_phase = 8
 
-            if np.linalg.norm(ee_pose - self._placing_position) < 0.05:
+            if np.linalg.norm(bolt_pose - self._placing_position) < 0.05:
                 self.task_phase = 8
 
         elif self.task_phase == 8: # 조인트 해제 및 종료
             print(f"task_phase :{self.task_phase} finish up")
+
             if self.joint_created:
                 self._remove_fixed_joint()
+            
+            self.stage = omni.usd.get_context().get_stage()
+            x1,y1,z1=self.robot.gripper.get_world_pose()[0]  # 함수 실행될 때마다 그리퍼 위치 가져오기
+            bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
+            bolt_pose = self.bolt.get_world_poses()[0][0]
+            bolt_pose[2] -= 0.05
+            if bolt_prim.IsValid():
+                new_pos = Gf.Vec3d(float(x1), float(y1), float(bolt_pose[2]))
+                bolt_prim.GetAttribute("xformOp:translate").Set(new_pos)
             
             # 또 placing position으로 이동 (불필요하면 삭제하기)
             action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
@@ -204,9 +177,9 @@ class RobotController:
     # fixed joint 생성하는 함수
     def _create_fixed_joint(self):
         # stage = omni.usd.get_context().get_stage()
-        joint_path = "/World/UR10/ee_link/MyFixedJoint"
+        joint_path = "/World/Bolt/MyFixedJoint"
         usd_joint = UsdPhysics.FixedJoint.Define(self.stage, Sdf.Path(joint_path))
-        usd_joint.CreateBody0Rel().SetTargets([Sdf.Path("/World/UR10/ee_link")])
+        usd_joint.CreateBody0Rel().SetTargets([Sdf.Path("/World/UR10/ee_link/gripper_tip")])
         usd_joint.CreateBody1Rel().SetTargets([Sdf.Path("/World/Bolt")])
         usd_joint.CreateJointEnabledAttr(True)
         get_physx_interface().force_load_physics_from_usd()  # 물리 엔진에 즉시 반영
@@ -215,7 +188,7 @@ class RobotController:
 
     # fixed joint 제거하는 함수
     def _remove_fixed_joint(self):
-        omni.kit.commands.execute("DeletePrims", paths=["/World/UR10/ee_link/MyFixedJoint"])
+        omni.kit.commands.execute("DeletePrims", paths=["/World/Bolt/MyFixedJoint"])
         get_physx_interface().force_load_physics_from_usd()
         self.joint_created = False
         print("Fixed Joint Removed")
@@ -228,3 +201,10 @@ class RobotController:
         if bolt_prim.IsValid():
             new_pos = Gf.Vec3d(float(x1), float(y1), float(z1-0.17))
             bolt_prim.GetAttribute("xformOp:translate").Set(new_pos)
+            fixed_quat = euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))
+            new_ori = Gf.Quatd(float(fixed_quat[0]), float(fixed_quat[1]), 
+                              float(fixed_quat[2]), float(fixed_quat[3]))
+            if bolt_prim.HasAttribute("xformOp:orient"):
+                bolt_prim.GetAttribute("xformOp:orient").Set(new_ori)
+            elif bolt_prim.HasAttribute("xformOp:orientation"):
+                bolt_prim.GetAttribute("xformOp:orientation").Set(new_ori)

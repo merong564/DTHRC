@@ -4,7 +4,6 @@ import numpy as np
 from isaacsim.robot.manipulators import SingleManipulator
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
 from omni.isaac.core.utils.stage import add_reference_to_stage
-#from omni.isaac.core.prims import RigidPrim
 from omni.isaac.core.utils.rotations import euler_angles_to_quat
 
 from isaacsim.core.prims import GeometryPrim, RigidPrim
@@ -20,21 +19,9 @@ class EnvManager:
         if self.usd_path:
             self._load_world()
 
-        # 1. World 초기화 (물리 및 렌더링 시간 설정)
-        self.world = World(stage_units_in_meters=1.0, physics_dt=1/200, rendering_dt=20/200)
+        self.world = World(stage_units_in_meters=1.0, physics_dt=1/500, rendering_dt=20/200)
         self.stage = omni.usd.get_context().get_stage()
-        # 3. Scene 초기화를 위해 반드시 reset() 수행
-        #self.world.reset()
         
-        ## 주석
-        # self.world.reset()
-
-        # if self.robot_usd_path:
-        #     self.add_robot(robot_usd_path)
-        
-
-        # self.robot = None
-
     def _load_world(self):
         import os
         import omni.usd
@@ -84,32 +71,14 @@ class EnvManager:
     
     def add_bolt(self, bolt_usd_path, position=np.array([0.7931, -0.36331, 0.88053])):
         add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
-        # bolt = RigidPrim(
-        #     prim_paths_expr="/World/Bolt",
-        #     name="my_bolt",
-        #     positions=position,
-        #     scales=np.array([[2, 2, 2]]),
-        #     orientations=np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
-        # )
-        # self.world.scene.add(bolt)
-        # self.world.scene.add(
-        #     RigidPrim(
-        #         prim_path="/World/Bolt",
-        #         name = "my_bolt",
-        #         position = np.array([0.7931, -0.36331, 0.88053]),
-        #         scale = np.array([2, 2, 2]),
-        #         orientation = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
-        #     )
-        # )
+        
 
         self.world.scene.add(
             RigidPrim(
                 prim_paths_expr="/World/Bolt",
                 name = "my_bolt",
                 positions = np.array([[0.7931, -0.36331, 0.88053]]),
-                scales = np.array([[2, 2, 2]]),
+                scales = np.array([[4, 4, 4]]),
                 orientations = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
             )
         )
-
-        # return bolt

@@ -26,6 +26,7 @@ def main():
     my_world.reset()
     #my_bolt = env.add_bolt(bolt_usd_path)
     env.add_bolt(bolt_usd_path)
+    print("1111111111111111111111111")
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
