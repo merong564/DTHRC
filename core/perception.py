@@ -34,7 +34,7 @@ class Camera:
 
         self.camera = Camera(
             prim_path=self.camera_path,
-            position=np.array([1.2, -1.6, 3.5]), # 로봇이나 작업대 앞 위치
+            position=np.array([0.8916, -1.4017, 3.139]), # 로봇이나 작업대 앞 위치
             frequency=30,
             resolution=(640, 480),
             orientation=target_orientation,

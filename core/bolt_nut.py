@@ -124,9 +124,11 @@ def _create_prism_mesh(
 
 
 class Bolt:
+    _counter = 0
+
     def __init__(
         self,
-        assembly_path="/World/bolt_assembly_01",
+        assembly_path="/World/bolt",
         head_radius=0.05,
         head_height=0.07,
         shaft_radius=0.03,
@@ -134,13 +136,18 @@ class Bolt:
         sides=32,
         offset_from_nut=None,
     ):
-        self.assembly_path = assembly_path
+        self.assembly_path = self._next_path(assembly_path)
         self.head_radius = head_radius
         self.head_height = head_height
         self.shaft_radius = shaft_radius
         self.shaft_height = shaft_height
         self.sides = sides
         self.offset_from_nut = offset_from_nut or Gf.Vec3d(0.3, 0.0, 0.0)
+
+    @classmethod
+    def _next_path(cls, base_path):
+        cls._counter += 1
+        return f"{base_path}_{cls._counter:02d}"
 
     def create(self, stage, base_pos):
         root = UsdGeom.Xform.Define(stage, self.assembly_path)
@@ -171,9 +178,11 @@ class Bolt:
 
 
 class Nut:
+    _counter = 0
+
     def __init__(
         self,
-        prim_path="/World/hexagon_01",
+        prim_path="/World/nut",
         radius=0.05,
         inner_radius=None,
         height=0.05,
@@ -181,7 +190,7 @@ class Nut:
         inner_sides=32,
         z_offset=1.0,
     ):
-        self.prim_path = prim_path
+        self.prim_path = self._next_path(prim_path)
         self.radius = radius
         self.inner_radius = inner_radius if inner_radius is not None else radius * 0.6
         self.height = height
@@ -203,3 +212,8 @@ class Nut:
         _apply_rigid_body(xform.GetPrim())
         _apply_collision(stage.GetPrimAtPath(f"{self.prim_path}/hex_mesh"))
         return xform
+
+    @classmethod
+    def _next_path(cls, base_path):
+        cls._counter += 1
+        return f"{base_path}_{cls._counter:02d}"

@@ -38,6 +38,29 @@ def _bind_material_to_prim(stage, prim_path, material):
     if prim.IsValid():
         UsdShade.MaterialBindingAPI(prim).Bind(material)
 
+# MOD: map YOLO bolt detection to closest bolt prim in stage
+def _select_bolt_prim_path(stage, camera_sensor, detections, depth_m):
+    bolt_dets = [d for d in detections if d.get("class") == "bolt"]
+    if not bolt_dets:
+        return None
+    best_det = max(bolt_dets, key=lambda d: d.get("confidence", 0.0))
+    center = np.array([best_det["center"]], dtype=np.float32)
+    depth = np.array([depth_m], dtype=np.float32)
+    world_point = camera_sensor.get_world_points_from_image_coords(center, depth)[0]
+    candidates = []
+    for prim in stage.Traverse():
+        name = prim.GetName().lower()
+        path = prim.GetPath().pathString.lower()
+        if "bolt" in name or "bolt" in path:
+            candidates.append(prim)
+    if not candidates:
+        return None
+    best_prim = min(
+        candidates,
+        key=lambda p: np.linalg.norm(np.array(get_world_translation(p)) - world_point),
+    )
+    return best_prim.GetPath().pathString
+
 def main():
     usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
     robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
@@ -52,12 +75,11 @@ def main():
     my_world = env.world # EnvManager의 world 가져오기
     my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
     my_world.reset()
-    #my_bolt = env.add_bolt(bolt_usd_path)
-    env.add_bolt(bolt_usd_path)
+    # env.add_bolt(bolt_usd_path)
     print("1111111111111111111111111")
 
     # yolo 볼트 추가
-    bolt_builder = Bolt()
+    bolt_builders = [Bolt() for _ in range(3)] # 3개의 볼트 생성
     nut_builder = Nut()
     bolt_prim = stage.GetPrimAtPath(BOLT_PRIM_PATH) if BOLT_PRIM_PATH else find_bolt_prim(stage)
     if bolt_prim and bolt_prim.IsValid():
@@ -67,8 +89,9 @@ def main():
         print("Bolt prim not found; placing hexagon at world origin with z offset.")
         hex_center = Gf.Vec3d(0.0, 0.0, nut_builder.z_offset)
     nut_builder.create(stage, hex_center)
-    bolt_base_pos = hex_center + bolt_builder.offset_from_nut
-    bolt_builder.create(stage, bolt_base_pos)
+    for i, bolt_builder in enumerate(bolt_builders):
+        bolt_base_pos = hex_center + bolt_builder.offset_from_nut + Gf.Vec3d(-0.2 * i, 0.0, 0.0) # 볼트 간격 조정
+        bolt_builder.create(stage, bolt_base_pos)
 
 
     timeline = omni.timeline.get_timeline_interface()
@@ -88,6 +111,7 @@ def main():
     yolo_engine = YoloDetector()
     debug_draw = _debug_draw.acquire_debug_draw_interface()
     depth_m = 2.0
+    detected_bolt_prim_path = None  # MOD: track YOLO-selected bolt prim
 
     # 3. 루프 변수
     timeline.play()
@@ -109,6 +133,18 @@ def main():
                 results = yolo_engine.detect(rgba_data)
                 debug_draw.clear_lines()
                 if results:
+                    new_bolt_prim_path = _select_bolt_prim_path(  # MOD
+                        stage, camera_test.camera, results, depth_m
+                    )
+                    # print("############ Detections: ############")
+                    if (
+                        new_bolt_prim_path
+                        and new_bolt_prim_path != detected_bolt_prim_path
+                    ):
+                        detected_bolt_prim_path = new_bolt_prim_path  # MOD
+                        robot_controller.set_bolt_prim_path(  # MOD
+                            detected_bolt_prim_path
+                        )
                     line_starts = []
                     line_ends = []
                     colors = []
@@ -121,6 +157,9 @@ def main():
                         colors.extend([color] * 4)
                         sizes.extend([2.0] * 4)
                     debug_draw.draw_lines(line_starts, line_ends, colors, sizes)
+
+                else:
+                    print("#### No detections. ####")
             
             if frame_count > 60:
                 current_time = timeline.get_current_time()

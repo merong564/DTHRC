@@ -1,7 +1,7 @@
 import numpy as np
 from omni.isaac.core.utils.rotations import euler_angles_to_quat
 import isaacsim.robot_motion.motion_generation as mg
-from pxr import Sdf, UsdPhysics, Gf
+from pxr import Sdf, UsdPhysics, Gf, UsdGeom  # MOD: use UsdGeom for bolt prim pose
 import omni.kit.commands
 from omni.physx import get_physx_interface
 from isaacsim.core.prims import SingleArticulation
@@ -43,10 +43,11 @@ class RMPFlowController(mg.MotionPolicyController):
         )
 
 class RobotController:
-    def __init__(self, world, robot,placing_position):
+    def __init__(self, world, robot,placing_position, bolt_prim_path="/World/Bolt"):  # MOD: allow YOLO-selected bolt prim
         self.world = world
         self.robot =self.world.scene.get_object("my_ur10")
-        self.bolt = self.world.scene.get_object("my_bolt")
+        self.bolt_prim_path = bolt_prim_path  # MOD: track bolt prim path from YOLO
+        self.bolt = self.world.scene.get_object("my_bolt") if bolt_prim_path == "/World/Bolt" else None  # MOD
         self.my_controller = None
         self.articulation_controller = None
         print("bolt goood")
@@ -68,19 +69,30 @@ class RobotController:
         except Exception as e:
             print(f"no place position: {e}")
 
-    def control_robot(self):
+    def set_bolt_prim_path(self, bolt_prim_path):
+        if not bolt_prim_path:
+            print('no bolt prim path')
+            return
+        if bolt_prim_path == self.bolt_prim_path:
+            return
+        self.bolt_prim_path = bolt_prim_path  # MOD: update target bolt from YOLO
+        self.bolt = self.world.scene.get_object("my_bolt") if bolt_prim_path == "/World/Bolt" else None  # MOD
+        print(f"target bolt prim path: {self.bolt_prim_path}")
+
+    def control_robot(self, target_bolt_prim_path=None):
         # 1. 현재 정보 업데이트
-        print("control_robot")
+        if target_bolt_prim_path:
+            self.set_bolt_prim_path(target_bolt_prim_path)  # MOD
         ee_pose, _ = self.robot.gripper.get_world_pose()
-        bolt_pose, _ = self.bolt.get_world_poses()
-        bolt_pose = bolt_pose[0]
-        print("control_robot2222")
+        bolt_pose = self._get_bolt_world_position()  # MOD: use YOLO-selected bolt prim
+        if bolt_pose is None:
+            print("bolt prim not ready")  # MOD
+            return
         print(bolt_pose)
         
         # 2. 페이즈별 로직 (State Machine)
         if self.task_phase == 1: # 볼트 접근 감시
             bolt_pose[2] += 0.035    # 볼트보다 0.035 높은 위치를 잡음
-            print("control_robot3333333")
             if bolt_pose[0] >= 0.5:           # 0.5: 로봇이 pick하기 시작하는 시점, 튜닝 필요
                 print("close bolt")
                 self.task_phase = 3
@@ -91,24 +103,28 @@ class RobotController:
 
         elif self.task_phase == 3: # 볼트로 이동
             print(f"task_phase :{self.task_phase} bolt access")
-            target_pos = self.bolt.get_world_poses()[0][0]       # 매순간 볼트의 위치를 가져와 타겟으로 설정
+            target_pos = self._get_bolt_world_position()  # MOD: target from selected bolt
+            if target_pos is None:
+                return
 
             target_ori = euler_angles_to_quat(np.array([0, np.pi/2, 0]))    # 그리퍼가 접근하는 각도
             
             action = self._apply_rmp_move(target_pos, target_ori)    # 로봇이 타겟으로 이동
             
             dist = np.linalg.norm(ee_pose - bolt_pose)
-            print(dist)
+            # print(dist)
 
             # 엔드 이펙터 위치와 볼트 위치가 가까워지면 fixed joint 생성, 다음 페이즈로 이동
             if dist < 0.25 and not self.joint_created:  # 0.25 튜닝 필요
-                print(f"Distance: {dist:.4f}m - Creating Fixed Joint!")
+                # print(f"Distance: {dist:.4f}m - Creating Fixed Joint!")
                 self._create_fixed_joint()
                 self.task_phase = 6
 
         elif self.task_phase == 6: # 들어올리기
             # 매순간 볼트, 엔드 이펙터 위치 가져오기
-            bolt_pose = self.bolt.get_world_poses()[0][0]
+            bolt_pose = self._get_bolt_world_position()  # MOD
+            if bolt_pose is None:
+                return
             ee_pose = self.robot.gripper.get_world_pose()[0]
 
             print(f"task_phase :{self.task_phase} picking: bolt z up")
@@ -130,7 +146,9 @@ class RobotController:
         
         elif self.task_phase == 7: # 목표 지점으로 이동
             print(f"task_phase :{self.task_phase} placing")
-            bolt_pose = self.bolt.get_world_poses()[0][0]
+            bolt_pose = self._get_bolt_world_position()  # MOD
+            if bolt_pose is None:
+                return
             #self._placing_position = 
             action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
             self._sync_bolt_to_gripper()
@@ -152,8 +170,10 @@ class RobotController:
             
             self.stage = omni.usd.get_context().get_stage()
             x1,y1,z1=self.robot.gripper.get_world_pose()[0]  # 함수 실행될 때마다 그리퍼 위치 가져오기
-            bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
-            bolt_pose = self.bolt.get_world_poses()[0][0]
+            bolt_prim = self._get_bolt_prim()  # MOD
+            bolt_pose = self._get_bolt_world_position()  # MOD
+            if bolt_pose is None or bolt_prim is None:
+                return
             bolt_pose[2] -= 0.05
             if bolt_prim.IsValid():
                 new_pos = Gf.Vec3d(float(x1), float(y1), float(bolt_pose[2]))
@@ -177,10 +197,12 @@ class RobotController:
     # fixed joint 생성하는 함수
     def _create_fixed_joint(self):
         # stage = omni.usd.get_context().get_stage()
-        joint_path = "/World/Bolt/MyFixedJoint"
+        if not self.bolt_prim_path:
+            return
+        joint_path = f"{self.bolt_prim_path}/MyFixedJoint"  # MOD: joint under selected bolt
         usd_joint = UsdPhysics.FixedJoint.Define(self.stage, Sdf.Path(joint_path))
         usd_joint.CreateBody0Rel().SetTargets([Sdf.Path("/World/UR10/ee_link/gripper_tip")])
-        usd_joint.CreateBody1Rel().SetTargets([Sdf.Path("/World/Bolt")])
+        usd_joint.CreateBody1Rel().SetTargets([Sdf.Path(self.bolt_prim_path)])  # MOD
         usd_joint.CreateJointEnabledAttr(True)
         get_physx_interface().force_load_physics_from_usd()  # 물리 엔진에 즉시 반영
         self.joint_created = True
@@ -188,7 +210,10 @@ class RobotController:
 
     # fixed joint 제거하는 함수
     def _remove_fixed_joint(self):
-        omni.kit.commands.execute("DeletePrims", paths=["/World/Bolt/MyFixedJoint"])
+        if not self.bolt_prim_path:
+            return
+        joint_path = f"{self.bolt_prim_path}/MyFixedJoint"  # MOD
+        omni.kit.commands.execute("DeletePrims", paths=[joint_path])  # MOD
         get_physx_interface().force_load_physics_from_usd()
         self.joint_created = False
         print("Fixed Joint Removed")
@@ -197,7 +222,7 @@ class RobotController:
         # 볼트를 실시간으로 이동하는 코드
         self.stage = omni.usd.get_context().get_stage()
         x1,y1,z1=self.robot.gripper.get_world_pose()[0]  # 함수 실행될 때마다 그리퍼 위치 가져오기
-        bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
+        bolt_prim = self._get_bolt_prim()  # MOD
         if bolt_prim.IsValid():
             new_pos = Gf.Vec3d(float(x1), float(y1), float(z1-0.17))
             bolt_prim.GetAttribute("xformOp:translate").Set(new_pos)
@@ -208,3 +233,23 @@ class RobotController:
                 bolt_prim.GetAttribute("xformOp:orient").Set(new_ori)
             elif bolt_prim.HasAttribute("xformOp:orientation"):
                 bolt_prim.GetAttribute("xformOp:orientation").Set(new_ori)
+
+    def _get_bolt_prim(self):
+        if not self.bolt_prim_path:
+            return None
+        bolt_prim = self.stage.GetPrimAtPath(self.bolt_prim_path)  # MOD
+        if not bolt_prim.IsValid():
+            return None
+        return bolt_prim
+
+    def _get_bolt_world_position(self):
+        if self.bolt is not None:
+            bolt_pose, _ = self.bolt.get_world_poses()
+            return bolt_pose[0] if len(bolt_pose) > 0 else None
+        bolt_prim = self._get_bolt_prim()
+        if bolt_prim is None:
+            return None
+        xform_cache = UsdGeom.XformCache()  # MOD
+        transform = xform_cache.GetLocalToWorldTransform(bolt_prim)
+        translation = transform.ExtractTranslation()
+        return np.array([translation[0], translation[1], translation[2]], dtype=np.float64)  # MOD
