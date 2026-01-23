@@ -7,14 +7,15 @@ from isaacsim.sensors.physx import _range_sensor
 from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
+#from core.pick_and_place import RobotController
 from core.pick_and_place import RobotController
-#from core.pnp import RobotController
 import numpy as np
 
 def main():
     usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
     robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
-    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose.usd"
+    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose/factory_bolt_m20_loose.usd"
+    nut_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_nut_m20_loose/factory_nut_m20_loose_2.usd"
     
     
     # 1. 환경 관리자 초기화
@@ -25,10 +26,8 @@ def main():
     my_world = env.world # EnvManager의 world 가져오기
     my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
     my_bolt = env.add_bolt(bolt_usd_path)
+    my_nut = env.add_nut(nut_usd_path)
     my_world.reset()
-    #my_bolt = env.add_bolt(bolt_usd_path)
-    #방금 주석
-    #env.add_bolt(bolt_usd_path)
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
@@ -36,14 +35,14 @@ def main():
     # 2. 각 모듈 초기화
     safety = SafetyManager(stage, lidar_interface)
     human_control = HumanController(stage, "/World/male")
-    print("제어기 가져오기 전")
+
     robot_controller = RobotController(my_world, my_robot,placing_position,my_bolt)
-    print("제어기 가져오기 후")
+
 
     # 3. 루프 변수
     timeline.play()
     frame_count = 0
-  
+    current_target_type = "bolt"
 
     try:
         while simulation_app.is_running():
@@ -66,7 +65,7 @@ def main():
                         
                     elif dist < 2.2:
                         safety.change_led_color(1.0, 1.0, 0.0) # Yellow
-                        speed_ratio = 0.5
+                        speed_ratio = 0.15
                     else:
                         safety.change_led_color(0.0, 0.0, 1.0) # Blue
                         speed_ratio = 1.0
@@ -75,6 +74,12 @@ def main():
                     speed_ratio = 1.0
                     
                 robot_controller.control_robot(speed_ratio=speed_ratio)
+                if robot_controller.task_phase == 9:
+                    if current_target_type == "bolt":
+                        robot_controller.set_target(my_nut) # 컨트롤러 내부 타겟을 Nut으로 변경
+                        current_target_type = "nut"
+                    elif current_target_type == "nut":
+                        pass
 
             frame_count += 1
 
