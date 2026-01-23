@@ -6,7 +6,7 @@ import omni.kit.commands
 from omni.physx import get_physx_interface
 from isaacsim.core.prims import SingleArticulation
 
-n = 0
+# n = 0
 nn=0
 class RMPFlowController(mg.MotionPolicyController):
 
@@ -49,7 +49,6 @@ class RobotController:
         self.world = world
         self.robot = robot
         self.robot =self.world.scene.get_object("my_ur10")
-        #self.bolt = self.world.scene.get_object("my_bolt")
         self.my_controller = None
         self.articulation_controller = None
         self.stage = world.stage
@@ -76,11 +75,7 @@ class RobotController:
 
     def set_target(self, target_obj):
         self.target = target_obj
-        # if self.target == "my_bolt":
-        #     self.target_path = "/World/Bolt"
-        # else:
-        #     self.target_path="/World/Nut" 
-        # self.task_phase = 1 # 페이즈 리셋
+
         if "bolt" in target_obj.name.lower(): 
             self.target_path = "/World/Bolt"
             self._placing_position = np.array([-0.90365, -0.25047, 1.5])
@@ -92,7 +87,7 @@ class RobotController:
         self.joint_created = False # 조인트 상태 리셋 필수
 
     def control_robot(self,speed_ratio=1.0):
-        global n 
+        # global n 
         global nn
         if self.task_phase ==9:
             return
@@ -101,7 +96,7 @@ class RobotController:
         target_pose, _ = self.target.get_world_poses()
         target_pose = target_pose[0]
         # 1. 현재 정보 업데이트
-        if n<=60:
+        if n<=10:
             n+=1
         else:
             if speed_ratio == 0.0:
@@ -112,6 +107,7 @@ class RobotController:
         
         # 2. 페이즈별 로직 (State Machine)
         if self.task_phase == 1: # 볼트 접근 감시
+            
             if "bolt" in self.target.name.lower(): 
                 target_pose[2] += 0.035 
             else:
@@ -121,7 +117,7 @@ class RobotController:
                 print("close bolt")
                 self.task_phase = 2
 
-        # pick 대기 시간 주기 (컨베이어 추가 시 수정 필요)
+        # pick 대기 시간 주기
         elif self.task_phase == 2:
             if "bolt" in self.target.name.lower(): 
                 if nn <150:
@@ -144,8 +140,6 @@ class RobotController:
             action = self._apply_rmp_move(target_pos, target_ori,speed_ratio=speed_ratio)    # 로봇이 타겟으로 이동
             
             dist = np.linalg.norm(ee_pose - target_pose)
-
-            # 엔드 이펙터 위치와 볼트 위치가 가까워지면 fixed joint 생성, 다음 페이즈로 이동
             
             if dist < 0.25:  # 0.25 튜닝 필요
                 self.task_phase = 6

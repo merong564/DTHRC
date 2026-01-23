@@ -6,7 +6,7 @@ class HumanController:
         self.human_prim = stage.GetPrimAtPath(human_path)
         self.initial_pos = self._get_initial_pos()
         self.amplitude = 1.5
-        self.frequency = 0.02
+        self.frequency = 0.1
 
     def _get_initial_pos(self):
         if self.human_prim.IsValid():

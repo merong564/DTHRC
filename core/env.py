@@ -1,12 +1,14 @@
 from omni.isaac.kit import SimulationApp
-from pxr import Gf, Usd, Sdf
+from pxr import Gf, Usd, Sdf,UsdPhysics
 import numpy as np
 from isaacsim.robot.manipulators import SingleManipulator
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
 from omni.isaac.core.utils.stage import add_reference_to_stage
 from omni.isaac.core.utils.rotations import euler_angles_to_quat
-
+import omni
 from isaacsim.core.prims import GeometryPrim, RigidPrim
+from omni.isaac.core.utils.prims import get_prim_at_path
+
 
 class EnvManager:
     def __init__(self, usd_path=None, robot_usd_path=None):
@@ -69,7 +71,7 @@ class EnvManager:
         print(f"Robot loaded at: {prim_path}")
         return self.robot
     
-    def add_bolt(self, bolt_usd_path, position=np.array([[0.7931, -0.36331, 0.88053]])):
+    def add_bolt(self, bolt_usd_path, position=np.array([[0.6, 2.0, 0.88053]])):
         add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
         
 
@@ -77,7 +79,7 @@ class EnvManager:
             RigidPrim(
                 prim_paths_expr="/World/Bolt",
                 name = "my_bolt",
-                positions = np.array([[0.7931, -0.36331, 0.88053]]),
+                positions = position,
                 scales = np.array([[2, 2, 2]]),
                 orientations = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
             )
@@ -85,7 +87,7 @@ class EnvManager:
         self.bolt = bolt
         return bolt
     
-    def add_nut(self, nut_usd_path, position=np.array([[0.7931, 0.0, 1.3]])):
+    def add_nut(self, nut_usd_path, position=np.array([[0.5, 2.0, 1.3]])):
         add_reference_to_stage(usd_path=nut_usd_path, prim_path="/World/Nut")
         
 
