@@ -2,6 +2,7 @@ import numpy as np
 import math
 from pxr import UsdGeom, Gf, Usd, UsdShade
 from omni.isaac.core.utils.semantics import add_update_semantics
+from core.pick_and_place import RobotController
 
 class SafetyManager:
     def __init__(self, stage, lidar_interface):
@@ -20,12 +21,24 @@ class SafetyManager:
 
     def _setup_lidar(self):
         import omni.kit.commands
+        from pxr import Gf
         omni.kit.commands.execute("RangeSensorCreateLidar",    
             path="/LidarName", parent=self.robot_path, 
-            min_range=0.4, max_range=20.0, draw_points=True, 
+            min_range=0.4, max_range=20.0, draw_points=False, 
             horizontal_fov=360.0, vertical_fov=60.0, enable_semantics=True, 
             rotation_rate=0, horizontal_resolution=1.0, vertical_resolution=1.0
         )
+        stage = omni.usd.get_context().get_stage()
+        lidar_prim = stage.GetPrimAtPath(f"{self.robot_path}/LidarName")
+        
+        if lidar_prim.IsValid():
+            # xformOp:translate 속성이 없으면 생성하고, 있으면 값을 설정합니다.
+            if not lidar_prim.HasAttribute("xformOp:translate"):
+                from pxr import UsdGeom
+                UsdGeom.Xformable(lidar_prim).AddTranslateOp()
+            
+            # 위치를 (0, 0, 1.0)으로 설정
+            lidar_prim.GetAttribute("xformOp:translate").Set(Gf.Vec3d(0.0, 0.0, 0.1))
 
     def _setup_semantics(self):
         if self.human_prim.IsValid():
@@ -54,3 +67,7 @@ class SafetyManager:
             if len(human_indices) > 0:
                 return np.min(depth_np[human_indices])
         return None
+    
+    #def robot_stop(self):
+        
+    #def robot_slow(self):

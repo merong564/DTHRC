@@ -73,12 +73,14 @@ class EnvManager:
         add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
         
 
-        self.world.scene.add(
+        bolt = self.world.scene.add(
             RigidPrim(
                 prim_paths_expr="/World/Bolt",
                 name = "my_bolt",
                 positions = np.array([[0.7931, -0.36331, 0.88053]]),
-                scales = np.array([[4, 4, 4]]),
+                scales = np.array([[2, 2, 2]]),
                 orientations = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
             )
         )
+        self.bolt = bolt
+        return bolt

@@ -6,6 +6,7 @@ import omni.kit.commands
 from omni.physx import get_physx_interface
 from isaacsim.core.prims import SingleArticulation
 
+n = 0
 class RMPFlowController(mg.MotionPolicyController):
 
     def __init__(
@@ -43,15 +44,17 @@ class RMPFlowController(mg.MotionPolicyController):
         )
 
 class RobotController:
-    def __init__(self, world, robot,placing_position):
+    def __init__(self, world, robot,placing_position,bolt):
         self.world = world
+        self.robot = robot
+        self.bolt = bolt
         self.robot =self.world.scene.get_object("my_ur10")
-        self.bolt = self.world.scene.get_object("my_bolt")
+        #self.bolt = self.world.scene.get_object("my_bolt")
         self.my_controller = None
         self.articulation_controller = None
         print("bolt goood")
         self.stage = world.stage
-        
+
 
 
         self.my_controller = RMPFlowController(
@@ -68,12 +71,22 @@ class RobotController:
         except Exception as e:
             print(f"no place position: {e}")
 
-    def control_robot(self):
-        # 1. 현재 정보 업데이트
-        print("control_robot")
+    def control_robot(self,speed_ratio=1.0):
+        global n 
         ee_pose, _ = self.robot.gripper.get_world_pose()
         bolt_pose, _ = self.bolt.get_world_poses()
         bolt_pose = bolt_pose[0]
+        # 1. 현재 정보 업데이트
+        print("control_robot")
+        if n<=100:
+            n+=1
+        else:
+            if speed_ratio == 0.0:
+            # 로봇을 즉시 멈추기 위해 현재 관절 속도를 0으로 설정
+                self.robot.set_joint_velocities(np.zeros_like(self.robot.get_joint_velocities()))
+                # self._sync_bolt_to_gripper()
+                return
+
         print("control_robot2222")
         print(bolt_pose)
         
@@ -130,6 +143,7 @@ class RobotController:
         
         elif self.task_phase == 7: # 목표 지점으로 이동
             print(f"task_phase :{self.task_phase} placing")
+            self._set_bolt_visibility(False)
             bolt_pose = self.bolt.get_world_poses()[0][0]
             #self._placing_position = 
             action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
@@ -141,11 +155,12 @@ class RobotController:
                 self.my_controller.reset()
                 self.task_phase = 8
 
-            if np.linalg.norm(bolt_pose - self._placing_position) < 0.05:
+            if np.linalg.norm(bolt_pose - self._placing_position) < 0.1:
                 self.task_phase = 8
 
         elif self.task_phase == 8: # 조인트 해제 및 종료
             print(f"task_phase :{self.task_phase} finish up")
+            self._set_bolt_visibility(True)
 
             if self.joint_created:
                 self._remove_fixed_joint()
@@ -161,16 +176,18 @@ class RobotController:
             
             # 또 placing position으로 이동 (불필요하면 삭제하기)
             action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
-
-
             self.task_phase = 9
 
     # 로봇이 target으로 이동하는 함수
-    def _apply_rmp_move(self, pos, ori):
+    def _apply_rmp_move(self, pos, ori, speed_ratio=1.0):
         action = self.my_controller.forward(
             target_end_effector_position=pos,
             target_end_effector_orientation=ori
         )
+        
+        if action.joint_velocities is not None:
+            action.joint_velocities *= speed_ratio
+
         self.robot.apply_action(action)
         return action
 
@@ -195,7 +212,7 @@ class RobotController:
 
     def _sync_bolt_to_gripper(self):
         # 볼트를 실시간으로 이동하는 코드
-        self.stage = omni.usd.get_context().get_stage()
+        # self.stage = omni.usd.get_context().get_stage()
         x1,y1,z1=self.robot.gripper.get_world_pose()[0]  # 함수 실행될 때마다 그리퍼 위치 가져오기
         bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
         if bolt_prim.IsValid():
@@ -208,3 +225,18 @@ class RobotController:
                 bolt_prim.GetAttribute("xformOp:orient").Set(new_ori)
             elif bolt_prim.HasAttribute("xformOp:orientation"):
                 bolt_prim.GetAttribute("xformOp:orientation").Set(new_ori)
+
+    def _set_bolt_visibility(self, visible: bool):
+        """볼트의 가시성을 설정함 (True: 보임, False: 숨김)!"""
+        self.stage = omni.usd.get_context().get_stage()
+        bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
+        
+        if bolt_prim.IsValid():
+            # 'visibility' 속성을 가져오거나 생성함!
+            vis_attr = bolt_prim.GetAttribute("visibility")
+            if not vis_attr:
+                vis_attr = bolt_prim.CreateAttribute("visibility", Sdf.ValueTypeNames.Token)
+            
+            # True면 'inherited', False면 'invisible' 설정!
+            new_vis = "inherited" if visible else "invisible"
+            vis_attr.Set(new_vis)

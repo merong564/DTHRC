@@ -8,6 +8,7 @@ from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
 from core.pick_and_place import RobotController
+#from core.pnp import RobotController
 import numpy as np
 
 def main():
@@ -23,19 +24,20 @@ def main():
     stage = env.stage
     my_world = env.world # EnvManager의 world 가져오기
     my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
+    my_bolt = env.add_bolt(bolt_usd_path)
     my_world.reset()
     #my_bolt = env.add_bolt(bolt_usd_path)
-    env.add_bolt(bolt_usd_path)
-    print("1111111111111111111111111")
+    #방금 주석
+    #env.add_bolt(bolt_usd_path)
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
-    placing_position = np.array([-1.25, -0.25047, 1.5])
+    placing_position = np.array([-0.90365, -0.25047, 1.3])
     # 2. 각 모듈 초기화
     safety = SafetyManager(stage, lidar_interface)
     human_control = HumanController(stage, "/World/male")
     print("제어기 가져오기 전")
-    robot_controller = RobotController(my_world, my_robot,placing_position)
+    robot_controller = RobotController(my_world, my_robot,placing_position,my_bolt)
     print("제어기 가져오기 후")
 
     # 3. 루프 변수
@@ -50,7 +52,9 @@ def main():
             if frame_count > 60:
                 current_time = timeline.get_current_time()
 
-                robot_controller.control_robot()
+                human_control.move_human(current_time)
+
+                speed_ratio = 1.0
                 
                 # 거리 측정 및 로직 판단
                 dist = safety.get_human_distance()
@@ -58,20 +62,19 @@ def main():
                 if dist is not None:
                     if dist < 1.4:
                         safety.change_led_color(1.0, 0.0, 0.0) # Red
+                        speed_ratio = 0.0
                         
                     elif dist < 2.2:
                         safety.change_led_color(1.0, 1.0, 0.0) # Yellow
-                        
+                        speed_ratio = 0.5
                     else:
                         safety.change_led_color(0.0, 0.0, 1.0) # Blue
-                        
+                        speed_ratio = 1.0
                 else:
-                    safety.change_led_color(0.0, 0.0, 1.0) # Blue (No detection)
+                    safety.change_led_color(0.0, 0.0, 1.0) # sky (No detection)
+                    speed_ratio = 1.0
                     
-
-                # 사람 이동 업데이트
-                human_control.move_human(current_time)
-                robot_controller.control_robot()
+                robot_controller.control_robot(speed_ratio=speed_ratio)
 
             frame_count += 1
 
