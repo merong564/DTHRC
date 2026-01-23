@@ -1,6 +1,6 @@
 import math
 
-from pxr import Gf, UsdGeom, UsdPhysics
+from pxr import Gf, PhysxSchema, Sdf, UsdGeom, UsdPhysics
 
 
 def _polygon_radius_at_angle(radius, sides, angle):
@@ -16,7 +16,19 @@ def _apply_rigid_body(prim):
 
 
 def _apply_collision(prim):
+    if prim is None or not prim.IsValid():
+        return
     UsdPhysics.CollisionAPI.Apply(prim)
+    physx_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
+    if hasattr(physx_api, "CreateApproximationAttr"):
+        physx_api.CreateApproximationAttr().Set("convexHull")
+    elif hasattr(physx_api, "GetApproximationAttr"):
+        attr = physx_api.GetApproximationAttr()
+        if not attr:
+            attr = prim.CreateAttribute("physxCollision:approximation", Sdf.ValueTypeNames.Token)
+        attr.Set("convexHull")
+    else:
+        prim.CreateAttribute("physxCollision:approximation", Sdf.ValueTypeNames.Token).Set("convexHull")
 
 
 def _create_prism_mesh(
@@ -27,9 +39,15 @@ def _create_prism_mesh(
     outer_sides,
     inner_radius=None,
     inner_sides=None,
+    create_xform=True,
 ):
-    xform = UsdGeom.Xform.Define(stage, prim_path)
-    mesh = UsdGeom.Mesh.Define(stage, f"{prim_path}/hex_mesh")
+    if create_xform:
+        xform = UsdGeom.Xform.Define(stage, prim_path)
+        mesh_path = f"{prim_path}/hex_mesh"
+    else:
+        xform = None
+        mesh_path = prim_path
+    mesh = UsdGeom.Mesh.Define(stage, mesh_path)
     points = []
     face_counts = []
     face_indices = []
@@ -120,7 +138,7 @@ def _create_prism_mesh(
     mesh.CreateFaceVertexIndicesAttr(face_indices)
     mesh.CreateDoubleSidedAttr(True)
     mesh.CreateSubdivisionSchemeAttr("none")
-    return xform
+    return xform or mesh
 
 
 class Bolt:
@@ -150,31 +168,42 @@ class Bolt:
         return f"{base_path}_{cls._counter:02d}"
 
     def create(self, stage, base_pos):
-        root = UsdGeom.Xform.Define(stage, self.assembly_path)
-        UsdGeom.XformCommonAPI(root).SetTranslate(base_pos)
-        _apply_rigid_body(root.GetPrim())
+        bolt_xform = UsdGeom.Xform.Define(stage, self.assembly_path)
+        xform_api = UsdGeom.XformCommonAPI(bolt_xform)
+        xform_api.SetTranslate(base_pos)
+        # 볼트 180도 회전하고 싶을 경우 위 한줄 주석, 아래 세 줄 주석 해제
+        # xform_api.SetTranslate(base_pos)
+        # xform_api.SetRotate((180.0, 0.0, 0.0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
+        # _apply_rigid_body(bolt_xform.GetPrim())
+        _apply_rigid_body(bolt_xform.GetPrim())
 
-        head_xform = _create_prism_mesh(
+        head_mesh = _create_prism_mesh(
             stage,
-            f"{self.assembly_path}/head",
+            f"{self.assembly_path}/head_hex_mesh",
             self.head_radius,
             self.head_height,
             self.sides,
+            create_xform=False,
         )
-        UsdGeom.XformCommonAPI(head_xform).SetTranslate(Gf.Vec3d(0.0, 0.0, -self.head_height / 2.0))
+        tip_offset = self.head_height / 2.0 + self.shaft_height
+        head_translate = Gf.Vec3d(0.0, 0.0, -self.head_height / 2.0 - tip_offset)
+        UsdGeom.XformCommonAPI(head_mesh).SetTranslate(head_translate)
 
-        shaft_xform = _create_prism_mesh(
+        shaft_mesh = _create_prism_mesh(
             stage,
-            f"{self.assembly_path}/shaft",
+            f"{self.assembly_path}/shaft_hex_mesh",
             self.shaft_radius,
             self.shaft_height,
             self.sides,
+            create_xform=False,
         )
-        UsdGeom.XformCommonAPI(shaft_xform).SetTranslate(Gf.Vec3d(0.0, 0.0, self.head_height / 2.0))
+        # 볼트 기둥 끝으로 xform 이동
+        shaft_translate = Gf.Vec3d(0.0, 0.0, self.head_height / 2.0 - tip_offset)
+        UsdGeom.XformCommonAPI(shaft_mesh).SetTranslate(shaft_translate)
 
-        _apply_collision(stage.GetPrimAtPath(f"{self.assembly_path}/head/hex_mesh"))
-        _apply_collision(stage.GetPrimAtPath(f"{self.assembly_path}/shaft/hex_mesh"))
-        return root
+        _apply_collision(stage.GetPrimAtPath(f"{self.assembly_path}/head_hex_mesh"))
+        _apply_collision(stage.GetPrimAtPath(f"{self.assembly_path}/shaft_hex_mesh"))
+        return bolt_xform
 
 
 class Nut:

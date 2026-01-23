@@ -227,12 +227,27 @@ class RobotController:
             new_pos = Gf.Vec3d(float(x1), float(y1), float(z1-0.17))
             bolt_prim.GetAttribute("xformOp:translate").Set(new_pos)
             fixed_quat = euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))
-            new_ori = Gf.Quatd(float(fixed_quat[0]), float(fixed_quat[1]), 
-                              float(fixed_quat[2]), float(fixed_quat[3]))
+            orient_attr = None
             if bolt_prim.HasAttribute("xformOp:orient"):
-                bolt_prim.GetAttribute("xformOp:orient").Set(new_ori)
+                orient_attr = bolt_prim.GetAttribute("xformOp:orient")
             elif bolt_prim.HasAttribute("xformOp:orientation"):
-                bolt_prim.GetAttribute("xformOp:orientation").Set(new_ori)
+                orient_attr = bolt_prim.GetAttribute("xformOp:orientation")
+            if orient_attr is not None:
+                if orient_attr.GetTypeName() == Sdf.ValueTypeNames.Quatf:
+                    new_ori = Gf.Quatf(
+                        float(fixed_quat[0]),
+                        float(fixed_quat[1]),
+                        float(fixed_quat[2]),
+                        float(fixed_quat[3]),
+                    )
+                else:
+                    new_ori = Gf.Quatd(
+                        float(fixed_quat[0]),
+                        float(fixed_quat[1]),
+                        float(fixed_quat[2]),
+                        float(fixed_quat[3]),
+                    )
+                orient_attr.Set(new_ori)
 
     def _get_bolt_prim(self):
         if not self.bolt_prim_path:

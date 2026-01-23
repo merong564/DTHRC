@@ -64,7 +64,7 @@ def _select_bolt_prim_path(stage, camera_sensor, detections, depth_m):
 def main():
     usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
     robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
-    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose.usd"
+    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/bolt_cad2.usd"
     
     
     # 1. 환경 관리자 초기화
@@ -75,7 +75,7 @@ def main():
     my_world = env.world # EnvManager의 world 가져오기
     my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
     my_world.reset()
-    # env.add_bolt(bolt_usd_path)
+    env.add_bolt(bolt_usd_path)
     print("1111111111111111111111111")
 
     # yolo 볼트 추가
@@ -90,7 +90,7 @@ def main():
         hex_center = Gf.Vec3d(0.0, 0.0, nut_builder.z_offset)
     nut_builder.create(stage, hex_center)
     for i, bolt_builder in enumerate(bolt_builders):
-        bolt_base_pos = hex_center + bolt_builder.offset_from_nut + Gf.Vec3d(-0.2 * i, 0.0, 0.0) # 볼트 간격 조정
+        bolt_base_pos = hex_center + bolt_builder.offset_from_nut + Gf.Vec3d(-0.4 * i, 0.0, 0.0) # 생성되는 볼트 간격 조정
         bolt_builder.create(stage, bolt_base_pos)
 
 

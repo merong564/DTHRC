@@ -1,5 +1,7 @@
+import os
+
 from omni.isaac.kit import SimulationApp
-from pxr import Gf, Usd, Sdf
+from pxr import Gf, Usd, Sdf, UsdPhysics, PhysxSchema
 import numpy as np
 from isaacsim.robot.manipulators import SingleManipulator
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
@@ -70,18 +72,55 @@ class EnvManager:
         return self.robot
     
     def add_bolt(self, bolt_usd_path, position=np.array([0.7931, -0.36331, 0.88053])):
-        add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
-        
+        if not os.path.exists(bolt_usd_path):
+            base_path, _ = os.path.splitext(bolt_usd_path)
+            for ext in (".usdc", ".usda", ".usd"):
+                alt_path = f"{base_path}{ext}"
+                if os.path.exists(alt_path):
+                    print(f"Warning: {bolt_usd_path} not found, using {alt_path}")
+                    bolt_usd_path = alt_path
+                    break
+            else:
+                raise FileNotFoundError(f"USD file not found at {bolt_usd_path}")
 
-        self.world.scene.add(
-            RigidPrim(
-                prim_paths_expr="/World/Bolt",
-                name = "my_bolt",
-                positions = np.array([[0.7931, -0.36331, 0.88053]]),
-                scales = np.array([[4, 4, 4]]),
-                orientations = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
+        add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
+        bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
+        if not bolt_prim.IsValid():
+            bolt_prim = self.stage.DefinePrim("/World/Bolt", "Xform")
+            bolt_prim.GetReferences().AddReference(bolt_usd_path)
+
+        
+        if bolt_prim.IsValid():
+            # 물리 속성 적용 (bolt_cad.usd용)
+            if not bolt_prim.HasAPI(UsdPhysics.RigidBodyAPI):
+                UsdPhysics.RigidBodyAPI.Apply(bolt_prim)
+            for prim in Usd.PrimRange(bolt_prim):
+                if prim.GetTypeName() == "Mesh":
+                    UsdPhysics.CollisionAPI.Apply(prim)
+                    physx_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
+                    if hasattr(physx_api, "CreateApproximationAttr"):
+                        physx_api.CreateApproximationAttr().Set("convexHull")
+                    elif hasattr(physx_api, "GetApproximationAttr"):
+                        attr = physx_api.GetApproximationAttr()
+                        if not attr:
+                            attr = prim.CreateAttribute(
+                                "physxCollision:approximation", Sdf.ValueTypeNames.Token
+                            )
+                        attr.Set("convexHull")
+                    else:
+                        prim.CreateAttribute(
+                            "physxCollision:approximation", Sdf.ValueTypeNames.Token
+                        ).Set("convexHull")
+
+            self.world.scene.add(
+                RigidPrim(
+                    prim_paths_expr="/World/Bolt",
+                    name="my_bolt",
+                    positions=np.array([position]),
+                    scales=np.array([[4, 4, 4]]),
+                    orientations=np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))]),
+                )
             )
-        )
     # yolo env 코드
     # def setup_physics(self):
     #     import omni.kit.commands
