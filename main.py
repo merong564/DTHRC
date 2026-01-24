@@ -6,6 +6,7 @@ import omni
 from isaacsim.sensors.physx import _range_sensor
 from isaacsim.util.debug_draw import _debug_draw
 import numpy as np
+from pxr import Gf
 
 from core.env import EnvManager
 from core.safety import SafetyManager
@@ -13,7 +14,6 @@ from core.move import HumanController
 from core.pick_and_place import RobotController
 from core.perception import select_bolt_prim_path, draw_detection_bboxes
 from core.sensor import Camera, Lidar, setup_human_semantics
-from core.bolt_nut import create_bolts_and_nut
 from core.yolo import YoloDetector
 
 BOLT_PRIM_PATH = None
@@ -31,7 +31,17 @@ def main():
     my_world.reset()
     env.add_bolt(bolt_usd_path)
 
-    create_bolts_and_nut(stage, BOLT_PRIM_PATH, bolt_count=3)
+    bolt_count = 3
+    nut_count = 3
+    position = Gf.Vec3d(0.834, 0.0, 1.0)
+    offset = 0.45
+    env.create_bolts_and_nuts(
+        BOLT_PRIM_PATH,
+        bolt_count=bolt_count,
+        nut_count=nut_count,
+        position=position,
+        offset=offset,
+    )
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()

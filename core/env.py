@@ -9,6 +9,7 @@ from omni.isaac.core.utils.stage import add_reference_to_stage
 from omni.isaac.core.utils.rotations import euler_angles_to_quat
 
 from isaacsim.core.prims import GeometryPrim, RigidPrim
+from core.bolt_nut import Bolt, Nut
 
 class EnvManager:
     def __init__(self, usd_path=None, robot_usd_path=None):
@@ -121,13 +122,41 @@ class EnvManager:
                     orientations=np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))]),
                 )
             )
-    # yolo env 코드
-    # def setup_physics(self):
-    #     import omni.kit.commands
-    #     # '/World/PhysicsScene' 문자열을 Sdf.Path로 변환
-    #     physics_path = Sdf.Path('/World/PhysicsScene')
-        
-    #     if not self.stage.GetPrimAtPath(physics_path):
-    #         omni.kit.commands.execute('AddPhysicsSceneCommand', 
-    #                                   stage=self.stage, 
-    #                                   path='/World/PhysicsScene')
+
+    def create_bolts_and_nuts(
+        self,
+        bolt_prim_path=None,
+        bolt_count=3,
+        nut_count=1,
+        position=None,
+        offset=0.45,
+    ):
+        if position is None:
+            base_position = Gf.Vec3d(0.834, 0.0, 1.0)
+        elif isinstance(position, Gf.Vec3d):
+            base_position = position
+        else:
+            base_position = Gf.Vec3d(*position)
+
+        bolt_builders = [Bolt() for _ in range(bolt_count)]
+        nut_builders = [Nut() for _ in range(nut_count)]
+        bolt_index = 0
+        nut_index = 0
+        total_count = bolt_count + nut_count
+
+        for i in range(total_count):
+            current_position = base_position + Gf.Vec3d(0.0, offset * i, 0.0)
+            prefer_bolt = (i % 2 == 0)
+
+            if prefer_bolt and bolt_index < bolt_count:
+                bolt_builders[bolt_index].create(self.stage, current_position)
+                bolt_index += 1
+            elif not prefer_bolt and nut_index < nut_count:
+                nut_builders[nut_index].create(self.stage, current_position)
+                nut_index += 1
+            elif bolt_index < bolt_count:
+                bolt_builders[bolt_index].create(self.stage, current_position)
+                bolt_index += 1
+            elif nut_index < nut_count:
+                nut_builders[nut_index].create(self.stage, current_position)
+                nut_index += 1
