@@ -7,8 +7,8 @@ from isaacsim.sensors.physx import _range_sensor
 from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
-from core.pick_and_place_follow import RobotController              # pick_and_place_follow.py 실행 시
-# from core.pick_and_place_gripper import RobotController           # # pick_and_place_gripper.py 실행 시
+# from core.pick_and_place_follow import RobotController              # pick_and_place_follow.py 실행 시
+from core.pick_and_place_gripper import RobotController           # # pick_and_place_gripper.py 실행 시
 from core.perception import select_bolt_prim_path, draw_detection_bboxes
 from core.sensor import Camera, Lidar, setup_human_semantics
 from core.yolo import YoloDetector
@@ -17,6 +17,10 @@ from isaacsim.util.debug_draw import _debug_draw
 import numpy as np
 
 BOLT_PRIM_PATH = None
+
+
+def _select_best_detection(detections):
+    return max(detections, key=lambda d: d.get("confidence", 0.0))
 
 
 def main():
@@ -37,17 +41,17 @@ def main():
     my_world.reset()
     
     # pick_and_place_gripper.py 실행 시
-    # bolt_count = 3
-    # nut_count = 3
-    # position = Gf.Vec3d(0.834, 0.0, 1.0)
-    # offset = 0.45
-    # env.create_bolts_and_nuts(
-    #     BOLT_PRIM_PATH,
-    #     bolt_count=bolt_count,
-    #     nut_count=nut_count,
-    #     position=position,
-    #     offset=offset,
-    # )
+    bolt_count = 1
+    nut_count = 1
+    position = Gf.Vec3d(0.834, 0.0, 1.0)
+    offset = 0.45
+    env.create_bolts_and_nuts(
+        BOLT_PRIM_PATH,
+        bolt_count=bolt_count,
+        nut_count=nut_count,
+        position=position,
+        offset=offset,
+    )
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
@@ -64,10 +68,10 @@ def main():
     human_control = HumanController(stage, "/World/male")
 
     # pick_and_place_follow.py 실행 시
-    robot_controller = RobotController(my_world, my_robot, placing_position, my_bolt)
+    # robot_controller = RobotController(my_world, my_robot, placing_position, my_bolt)
 
     # pick_and_place_gripper.py 실행 시
-    # robot_controller = RobotController(my_world, my_robot, placing_position)
+    robot_controller = RobotController(my_world, my_robot, placing_position)
 
     camera_sensor = Camera()
     camera_sensor.setup_scene()
@@ -76,11 +80,13 @@ def main():
     yolo_engine = YoloDetector()
     debug_draw = _debug_draw.acquire_debug_draw_interface()
     depth_m = 2.0
+
     detected_bolt_prim_path = None
 
     timeline.play()
     frame_count = 0
 
+    current_target_obj = my_bolt
     current_target_type = "bolt"  # pick_and_place_follow.py 실행 시
 
     # for _ in range(10):
@@ -90,12 +96,13 @@ def main():
         while simulation_app.is_running():
             simulation_app.update()
 
+            detected_target_obj = None
             rgba_data = camera_sensor.step()
             if rgba_data is not None and rgba_data.size > 0:
                 results = yolo_engine.detect(rgba_data)
                 if results:
                     new_bolt_prim_path = select_bolt_prim_path(
-                        stage, camera_sensor.camera, results, depth_m
+                    stage, camera_sensor.camera, results, depth_m
                     )
                     if (
                         new_bolt_prim_path
@@ -105,6 +112,7 @@ def main():
                         robot_controller.set_bolt_prim_path(
                             detected_bolt_prim_path
                         )
+                        
                     draw_detection_bboxes(
                         debug_draw, camera_sensor.camera, results, depth_m
                     )
@@ -117,17 +125,19 @@ def main():
                 human_control.move_human(current_time)
                 
                 dist = safety.get_human_distance()                          # 거리 측정
+                print(f'human distance: {dist}')
                 speed_ratio = safety.update_led_for_distance(dist)          # 거리에 따른 로봇 속도(감속/정지) 설정
+                print(f'speed_ratio: {speed_ratio}')
                 robot_controller.control_robot(speed_ratio=speed_ratio)     # pick and place
                 
 
                 # pick_and_place_follow.py 실행 시
-                if robot_controller.task_phase == 7:
-                    if current_target_type == "bolt":
-                        robot_controller.set_target(my_nut) # 컨트롤러 내부 타겟을 Nut으로 변경
-                        current_target_type = "nut"
-                    elif current_target_type == "nut":
-                        pass
+                # if robot_controller.task_phase == 7:
+                #     if current_target_type == "bolt":
+                #         robot_controller.set_target(my_nut) # 컨트롤러 내부 타겟을 Nut으로 변경
+                #         current_target_type = "nut"
+                #     elif current_target_type == "nut":
+                #         pass
 
             frame_count += 1
 
@@ -140,7 +150,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 

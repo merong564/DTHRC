@@ -27,7 +27,7 @@ class SafetyManager:
     def get_human_distance(self):
         semantics = self.lidar_interface.get_prim_data(self.lidar_full_path)
         depth = self.lidar_interface.get_linear_depth_data(self.lidar_full_path)
-        
+        print(f'semantics: {semantics}')
         if len(semantics) > 0:
             semantics_np = np.array(semantics)
             depth_np = np.array(depth)

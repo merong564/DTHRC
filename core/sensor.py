@@ -62,6 +62,7 @@ class Lidar:
         rotation_rate=0,
         horizontal_resolution=1.0,
         vertical_resolution=1.0,
+        translation=Gf.Vec3d(0.0, 0.0, 0.1),
     ):
         self.robot_path = robot_path
         self.lidar_name = lidar_name
@@ -74,10 +75,12 @@ class Lidar:
         self.rotation_rate = rotation_rate
         self.horizontal_resolution = horizontal_resolution
         self.vertical_resolution = vertical_resolution
+        self.translation = translation
         self.full_path = f"{self.robot_path}/{self.lidar_name}"
 
     def setup(self):
         import omni.kit.commands
+        import omni.usd
 
         omni.kit.commands.execute(
             "RangeSensorCreateLidar",
@@ -93,6 +96,15 @@ class Lidar:
             horizontal_resolution=self.horizontal_resolution,
             vertical_resolution=self.vertical_resolution,
         )
+        if self.translation is not None:
+            stage = omni.usd.get_context().get_stage()
+            lidar_prim = stage.GetPrimAtPath(self.full_path)
+            if lidar_prim.IsValid():
+                translate_attr = lidar_prim.GetAttribute("xformOp:translate")
+                if not translate_attr:
+                    UsdGeom.Xformable(lidar_prim).AddTranslateOp()
+                    translate_attr = lidar_prim.GetAttribute("xformOp:translate")
+                translate_attr.Set(self.translation)
         return self.full_path
 
 

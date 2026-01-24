@@ -38,13 +38,24 @@ class RobotController:
             print(f"no place position: {e}")
 
     def set_target(self, target_obj):
-        self.target = target_obj
+        global n
+        global nn
 
+        if target_obj is None:
+            print("no target object")
+            return
+        if getattr(self, "target", None) is target_obj:
+            return
+
+        self.target = target_obj
         if "bolt" in target_obj.name.lower(): 
             self.target_path = "/World/Bolt"
         else:
             self.target_path = "/World/Nut"
-        
+
+        self.task_phase = 1
+        n = 0
+        nn = 0
         
 
     def control_robot(self,speed_ratio=1.0):
