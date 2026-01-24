@@ -1,28 +1,18 @@
 import numpy as np
 import math
-from pxr import Gf, UsdShade
+from pxr import UsdGeom, Gf, Usd, UsdShade
 
 class SafetyManager:
-    def __init__(
-        self,
-        stage,
-        lidar_interface,
-        robot_path="/World/UR10/base_link",
-        lidar_name="LidarName",
-        human_path="/World/male",
-        danger_path="/World/danger",
-    ):
+    def __init__(self, stage, lidar_interface):
         self.stage = stage
         self.lidar_interface = lidar_interface
-        self.robot_path = robot_path
-        self.lidar_full_path = f"{self.robot_path}/{lidar_name}"
-        self.human_path = human_path
-        self.danger_path = danger_path
+        self.robot_path = "/World/UR10/base_link"
+        self.lidar_full_path = f"{self.robot_path}/LidarName"
+        self.human_path = "/World/male"
+        self.danger_path = "/World/danger"
         
         self.human_prim = stage.GetPrimAtPath(self.human_path)
         self.danger_prim = stage.GetPrimAtPath(self.danger_path)
-        
-        return
 
     def change_led_color(self, r, g, b, intensity=10000.0):
         if self.danger_prim.IsValid():
@@ -45,14 +35,22 @@ class SafetyManager:
             if len(human_indices) > 0:
                 return np.min(depth_np[human_indices])
         return None
-
+    
     def update_led_for_distance(self, dist):
+        self.speed_ratio = 1.0
+
         if dist is not None:
             if dist < 1.4:
                 self.change_led_color(1.0, 0.0, 0.0)
+                self.speed_ratio = 0.0
             elif dist < 2.2:
                 self.change_led_color(1.0, 1.0, 0.0)
+                self.speed_ratio = 0.15
             else:
                 self.change_led_color(0.0, 0.0, 1.0)
+                self.speed_ratio = 1.0
         else:
             self.change_led_color(0.0, 0.0, 1.0)
+            self.speed_ratio = 1.0
+        
+        return self.speed_ratio

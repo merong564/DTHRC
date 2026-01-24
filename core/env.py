@@ -72,57 +72,87 @@ class EnvManager:
         print(f"Robot loaded at: {prim_path}")
         return self.robot
     
-    def add_bolt(self, bolt_usd_path, position=np.array([0.7931, -0.36331, 0.88053])):
-        if not os.path.exists(bolt_usd_path):
-            base_path, _ = os.path.splitext(bolt_usd_path)
-            for ext in (".usdc", ".usda", ".usd"):
-                alt_path = f"{base_path}{ext}"
-                if os.path.exists(alt_path):
-                    print(f"Warning: {bolt_usd_path} not found, using {alt_path}")
-                    bolt_usd_path = alt_path
-                    break
-            else:
-                raise FileNotFoundError(f"USD file not found at {bolt_usd_path}")
+    # 볼트 에셋 불러오는 함수
+    def add_bolt(self, bolt_usd_path, position=np.array([0.7931, 2.0, 0.88053])):
+        # if not os.path.exists(bolt_usd_path):
+        #     base_path, _ = os.path.splitext(bolt_usd_path)
+        #     for ext in (".usdc", ".usda", ".usd"):
+        #         alt_path = f"{base_path}{ext}"
+        #         if os.path.exists(alt_path):
+        #             print(f"Warning: {bolt_usd_path} not found, using {alt_path}")
+        #             bolt_usd_path = alt_path
+        #             break
+        #     else:
+        #         raise FileNotFoundError(f"USD file not found at {bolt_usd_path}")
 
         add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
-        bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
-        if not bolt_prim.IsValid():
-            bolt_prim = self.stage.DefinePrim("/World/Bolt", "Xform")
-            bolt_prim.GetReferences().AddReference(bolt_usd_path)
-
         
-        if bolt_prim.IsValid():
-            # 물리 속성 적용 (bolt_cad.usd용)
-            if not bolt_prim.HasAPI(UsdPhysics.RigidBodyAPI):
-                UsdPhysics.RigidBodyAPI.Apply(bolt_prim)
-            for prim in Usd.PrimRange(bolt_prim):
-                if prim.GetTypeName() == "Mesh":
-                    UsdPhysics.CollisionAPI.Apply(prim)
-                    physx_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
-                    if hasattr(physx_api, "CreateApproximationAttr"):
-                        physx_api.CreateApproximationAttr().Set("convexHull")
-                    elif hasattr(physx_api, "GetApproximationAttr"):
-                        attr = physx_api.GetApproximationAttr()
-                        if not attr:
-                            attr = prim.CreateAttribute(
-                                "physxCollision:approximation", Sdf.ValueTypeNames.Token
-                            )
-                        attr.Set("convexHull")
-                    else:
-                        prim.CreateAttribute(
-                            "physxCollision:approximation", Sdf.ValueTypeNames.Token
-                        ).Set("convexHull")
+        
+        # bolt_prim = self.stage.GetPrimAtPath("/World/Bolt")
+        # if not bolt_prim.IsValid():
+        #     bolt_prim = self.stage.DefinePrim("/World/Bolt", "Xform")
+        #     bolt_prim.GetReferences().AddReference(bolt_usd_path)
+        
+        # if bolt_prim.IsValid():
+        #     # 물리 속성 적용 (bolt_cad.usd용)
+        #     if not bolt_prim.HasAPI(UsdPhysics.RigidBodyAPI):
+        #         UsdPhysics.RigidBodyAPI.Apply(bolt_prim)
+        #     for prim in Usd.PrimRange(bolt_prim):
+        #         if prim.GetTypeName() == "Mesh":
+        #             UsdPhysics.CollisionAPI.Apply(prim)
+        #             physx_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
+        #             if hasattr(physx_api, "CreateApproximationAttr"):
+        #                 physx_api.CreateApproximationAttr().Set("convexHull")
+        #             elif hasattr(physx_api, "GetApproximationAttr"):
+        #                 attr = physx_api.GetApproximationAttr()
+        #                 if not attr:
+        #                     attr = prim.CreateAttribute(
+        #                         "physxCollision:approximation", Sdf.ValueTypeNames.Token
+        #                     )
+        #                 attr.Set("convexHull")
+        #             else:
+        #                 prim.CreateAttribute(
+        #                     "physxCollision:approximation", Sdf.ValueTypeNames.Token
+        #                 ).Set("convexHull")
 
-            self.world.scene.add(
+        #     self.world.scene.add(
+        #         RigidPrim(
+        #             prim_paths_expr="/World/Bolt",
+        #             name="my_bolt",
+        #             positions=np.array([position]),
+        #             scales=np.array([[2, 2, 2]]),
+        #             orientations=np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))]),
+        #         )
+        #     )
+
+        self.bolt = self.world.scene.add(
                 RigidPrim(
                     prim_paths_expr="/World/Bolt",
                     name="my_bolt",
                     positions=np.array([position]),
-                    scales=np.array([[4, 4, 4]]),
+                    scales=np.array([[2, 2, 2]]),
                     orientations=np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))]),
-                )
-            )
+                ))
+        
+        return self.bolt
+    
+    # 너트 에셋 불러오는 함수
+    def add_nut(self, nut_usd_path, position=np.array([[0.5, 2.0, 0.9]])):
+        add_reference_to_stage(usd_path=nut_usd_path, prim_path="/World/Nut")
+        
 
+        self.nut = self.world.scene.add(
+            RigidPrim(
+                prim_paths_expr="/World/Nut",
+                name = "my_nut",
+                positions = position,
+                scales = np.array([[2, 2, 2]])
+            )
+        )
+
+        return self.nut
+
+    # 볼트, 너트 자체 제작 함수
     def create_bolts_and_nuts(
         self,
         bolt_prim_path=None,
@@ -173,4 +203,3 @@ class EnvManager:
         translation = transform.ExtractTranslation()
         # 박스 0.5 높은 위치 반환
         return np.array([translation[0], translation[1], translation[2]+0.5], dtype=np.float64)
-

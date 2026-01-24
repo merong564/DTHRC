@@ -1,20 +1,20 @@
-# SimulationApp must be created first
+# 반드시 SimulationApp이 가장 먼저 생성되어야 함
 from omni.isaac.kit import SimulationApp
 simulation_app = SimulationApp({"headless": False})
 
 import omni
 from isaacsim.sensors.physx import _range_sensor
-from isaacsim.util.debug_draw import _debug_draw
-import numpy as np
-from pxr import Gf
-
 from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
-from core.pick_and_place import RobotController
+from core.pick_and_place_follow import RobotController              # pick_and_place_follow.py 실행 시
+# from core.pick_and_place_gripper import RobotController           # # pick_and_place_gripper.py 실행 시
 from core.perception import select_bolt_prim_path, draw_detection_bboxes
 from core.sensor import Camera, Lidar, setup_human_semantics
 from core.yolo import YoloDetector
+from pxr import Gf
+from isaacsim.util.debug_draw import _debug_draw
+import numpy as np
 
 BOLT_PRIM_PATH = None
 
@@ -22,40 +22,56 @@ BOLT_PRIM_PATH = None
 def main():
     usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
     robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
-    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/bolt_cad2.usd"
+    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose/factory_bolt_m20_loose.usd"
+    nut_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_nut_m20_loose/factory_nut_m20_loose_2.usd"
 
+    # 1. 환경 관리자 초기화
     env = EnvManager(usd_path, robot_usd_path)
+    # env.setup_physics()
+    
     stage = env.stage
-    my_world = env.world
-    my_robot = env.add_robot(robot_usd_path)
+    my_world = env.world # EnvManager의 world 가져오기
+    my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
+    my_bolt = env.add_bolt(bolt_usd_path)
+    my_nut = env.add_nut(nut_usd_path)
     my_world.reset()
-    env.add_bolt(bolt_usd_path)
-
-    bolt_count = 3
-    nut_count = 3
-    position = Gf.Vec3d(0.834, 0.0, 1.0)
-    offset = 0.45
-    env.create_bolts_and_nuts(
-        BOLT_PRIM_PATH,
-        bolt_count=bolt_count,
-        nut_count=nut_count,
-        position=position,
-        offset=offset,
-    )
+    
+    # pick_and_place_gripper.py 실행 시
+    # bolt_count = 3
+    # nut_count = 3
+    # position = Gf.Vec3d(0.834, 0.0, 1.0)
+    # offset = 0.45
+    # env.create_bolts_and_nuts(
+    #     BOLT_PRIM_PATH,
+    #     bolt_count=bolt_count,
+    #     nut_count=nut_count,
+    #     position=position,
+    #     offset=offset,
+    # )
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
+
+    # 너트 집을 시 수정 필요
     placing_position = env.get_box_position('bolt_box', '/World/bolt_box')
+
+    # 라이다 설정
     lidar = Lidar(robot_path="/World/UR10/base_link")
     lidar.setup()
     setup_human_semantics(stage, human_path="/World/male")
 
     safety = SafetyManager(stage, lidar_interface)
     human_control = HumanController(stage, "/World/male")
-    robot_controller = RobotController(my_world, my_robot, placing_position)
+
+    # pick_and_place_follow.py 실행 시
+    robot_controller = RobotController(my_world, my_robot, placing_position, my_bolt)
+
+    # pick_and_place_gripper.py 실행 시
+    # robot_controller = RobotController(my_world, my_robot, placing_position)
 
     camera_sensor = Camera()
     camera_sensor.setup_scene()
+    camera_sensor.initialize()
 
     yolo_engine = YoloDetector()
     debug_draw = _debug_draw.acquire_debug_draw_interface()
@@ -65,10 +81,10 @@ def main():
     timeline.play()
     frame_count = 0
 
-    for _ in range(10):
-        simulation_app.update()
+    current_target_type = "bolt"  # pick_and_place_follow.py 실행 시
 
-    camera_sensor.initialize()
+    # for _ in range(10):
+    #     simulation_app.update()
 
     try:
         while simulation_app.is_running():
@@ -98,13 +114,20 @@ def main():
             if frame_count > 60:
                 current_time = timeline.get_current_time()
 
-                robot_controller.control_robot()
-
-                dist = safety.get_human_distance()
-                safety.update_led_for_distance(dist)
-
                 human_control.move_human(current_time)
-                robot_controller.control_robot()
+                
+                dist = safety.get_human_distance()                          # 거리 측정
+                speed_ratio = safety.update_led_for_distance(dist)          # 거리에 따른 로봇 속도(감속/정지) 설정
+                robot_controller.control_robot(speed_ratio=speed_ratio)     # pick and place
+                
+
+                # pick_and_place_follow.py 실행 시
+                if robot_controller.task_phase == 7:
+                    if current_target_type == "bolt":
+                        robot_controller.set_target(my_nut) # 컨트롤러 내부 타겟을 Nut으로 변경
+                        current_target_type = "nut"
+                    elif current_target_type == "nut":
+                        pass
 
             frame_count += 1
 
@@ -115,6 +138,10 @@ def main():
         _debug_draw.release_debug_draw_interface(debug_draw)
         simulation_app.close()
 
-
 if __name__ == "__main__":
     main()
+
+
+
+
+
