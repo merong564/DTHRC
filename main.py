@@ -7,8 +7,8 @@ from isaacsim.sensors.physx import _range_sensor
 from core.env import EnvManager
 from core.safety import SafetyManager
 from core.move import HumanController
-#from core.pick_and_place import RobotController
 from core.pick_and_place import RobotController
+# from core.pnp import RobotController
 import numpy as np
 
 def main():

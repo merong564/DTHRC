@@ -6,7 +6,7 @@ import omni.kit.commands
 from omni.physx import get_physx_interface
 from isaacsim.core.prims import SingleArticulation
 
-# n = 0
+n = 0
 nn=0
 class RMPFlowController(mg.MotionPolicyController):
 
@@ -87,7 +87,7 @@ class RobotController:
         self.joint_created = False # 조인트 상태 리셋 필수
 
     def control_robot(self,speed_ratio=1.0):
-        # global n 
+        global n 
         global nn
         if self.task_phase ==9:
             return
@@ -96,7 +96,7 @@ class RobotController:
         target_pose, _ = self.target.get_world_poses()
         target_pose = target_pose[0]
         # 1. 현재 정보 업데이트
-        if n<=10:
+        if n<=60:
             n+=1
         else:
             if speed_ratio == 0.0:
@@ -107,13 +107,12 @@ class RobotController:
         
         # 2. 페이즈별 로직 (State Machine)
         if self.task_phase == 1: # 볼트 접근 감시
-            
             if "bolt" in self.target.name.lower(): 
-                target_pose[2] += 0.035 
+                target_pose[2] += 0.035
             else:
-                target_pose[2] += 0.02 
+                target_pose[2] += 0.02
 
-            if target_pose[0] >= 0.5:           # 0.5: 로봇이 pick하기 시작하는 시점, 튜닝 필요
+            if target_pose[1] <= 1.1:           # 0.5: 로봇이 pick하기 시작하는 시점, 튜닝 필요
                 print("close bolt")
                 self.task_phase = 2
 
@@ -121,13 +120,13 @@ class RobotController:
         elif self.task_phase == 2:
             if "bolt" in self.target.name.lower(): 
                 if nn <150:
-                    action = self._apply_rmp_move(np.array([0.7, -0.34, 1.5]), euler_angles_to_quat(np.array([0, np.pi/2, 0])),speed_ratio=speed_ratio)
+                    action = self._apply_rmp_move(np.array([0.7, -0.34, 1.2]), euler_angles_to_quat(np.array([0, np.pi/2, 0])),speed_ratio=speed_ratio)
                     nn+=1
                 else:
                     self.task_phase = 3
             else:
-                if nn <300:
-                    action = self._apply_rmp_move(np.array([0.7, -0.34, 1.5]), euler_angles_to_quat(np.array([0, np.pi/2, 0])),speed_ratio=speed_ratio)
+                if nn <150:
+                    action = self._apply_rmp_move(np.array([0.7, -0.34, 1.2]), euler_angles_to_quat(np.array([0, np.pi/2, 0])),speed_ratio=speed_ratio)
                     nn+=1
                 else:
                     self.task_phase = 3

@@ -71,7 +71,7 @@ class EnvManager:
         print(f"Robot loaded at: {prim_path}")
         return self.robot
     
-    def add_bolt(self, bolt_usd_path, position=np.array([[0.6, 2.0, 0.88053]])):
+    def add_bolt(self, bolt_usd_path):
         add_reference_to_stage(usd_path=bolt_usd_path, prim_path="/World/Bolt")
         
 
@@ -79,7 +79,7 @@ class EnvManager:
             RigidPrim(
                 prim_paths_expr="/World/Bolt",
                 name = "my_bolt",
-                positions = position,
+                positions = np.array([[0.7931, 2.0, 0.88053]]),
                 scales = np.array([[2, 2, 2]]),
                 orientations = np.array([euler_angles_to_quat(np.array([-np.pi/2, 0, 0]))])
             )
@@ -87,7 +87,7 @@ class EnvManager:
         self.bolt = bolt
         return bolt
     
-    def add_nut(self, nut_usd_path, position=np.array([[0.5, 2.0, 1.3]])):
+    def add_nut(self, nut_usd_path, position=np.array([[0.5, 2.0, 0.9]])):
         add_reference_to_stage(usd_path=nut_usd_path, prim_path="/World/Nut")
         
 
