@@ -1,9 +1,13 @@
+import sys
+sys.path.insert(0, '/home/rokey/Desktop/DTHRC/DTHRC/utils')
+
 import numpy as np
 from omni.isaac.core.utils.rotations import euler_angles_to_quat
 from pxr import Sdf, UsdPhysics, Gf, UsdGeom  # MOD: use UsdGeom for bolt prim pose
 import omni.kit.commands
 from omni.physx import get_physx_interface
-from utils.rmpflow_controller import RMPFlowController
+from rmpflow_controller import RMPFlowController
+
 
 class RobotController:
     def __init__(self, world, robot,placing_position, bolt_prim_path="/World/Bolt"):  # MOD: allow YOLO-selected bolt prim
