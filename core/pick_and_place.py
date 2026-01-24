@@ -73,18 +73,28 @@ class RobotController:
             target_pos = self._get_bolt_world_position()  # MOD: target from selected bolt
             if target_pos is None:
                 return
+            
+            # print(f'taget pos: {target_pos}')
 
             target_ori = euler_angles_to_quat(np.array([0, np.pi/2, 0]))    # 그리퍼가 접근하는 각도
             
             action = self._apply_rmp_move(target_pos, target_ori)    # 로봇이 타겟으로 이동
             
             dist = np.linalg.norm(ee_pose - bolt_pose)
-            # print(dist)
+            print(f'dist: {dist}')
 
             # 엔드 이펙터 위치와 볼트 위치가 가까워지면 fixed joint 생성, 다음 페이즈로 이동
-            if dist < 0.25 and not self.joint_created:  # 0.25 튜닝 필요
+            if dist < 0.18:  # 0.18 튜닝 필요
                 # print(f"Distance: {dist:.4f}m - Creating Fixed Joint!")
-                self._create_fixed_joint()
+                # self._create_fixed_joint()
+            ######### 추가 #########
+            # current_joint_positions = self.robot.get_joint_positions()
+            # if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                print("############### close gripper ###############")
+                self.robot.gripper.close()
+                bolt_pose = self._get_bolt_world_position()
+                self.bolt_pose_up = np.array([bolt_pose[0], bolt_pose[1], bolt_pose[2]+0.3])  # 기존 볼트 위치보다 0.3m 위까지 올리기 위한 위치 저장
+
                 self.task_phase = 6
 
         elif self.task_phase == 6: # 들어올리기
@@ -94,14 +104,17 @@ class RobotController:
                 return
             ee_pose = self.robot.gripper.get_world_pose()[0]
 
-            print(f"task_phase :{self.task_phase} picking: bolt z up")
-            target_pos = np.array([bolt_pose[0], bolt_pose[1], bolt_pose[2]+0.05])
+            # print(f"task_phase :{self.task_phase} picking: bolt z up")
+            # target_pos = np.array([bolt_pose[0], bolt_pose[1], bolt_pose[2]+0.05])
             ## 추후 수정해보기: 로봇팔 움직인 후에 볼트 위치 변경
-            action = self._apply_rmp_move(target_pos, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
+            action = self._apply_rmp_move(self.bolt_pose_up, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
             
-            self._sync_bolt_to_gripper()  # 볼트 위치 이동
+            # self._sync_bolt_to_gripper()  # 볼트 위치 이동
             
-            if ee_pose[2] > 1.5:   # 로봇팔 위치가 1.5를 넘으면 다음 페이즈로 이동
+            if ee_pose[2] > self.bolt_pose_up[2]:   # 로봇팔 위치가 1.5를 넘으면 다음 페이즈로 이동
+            # current_joint_positions = self.robot.get_joint_positions()
+            # if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
+                self.my_controller.reset()      ###### 추가 ########
                 self.task_phase = 7
             
             ## 원래 코드
@@ -118,7 +131,7 @@ class RobotController:
                 return
             #self._placing_position = 
             action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
-            self._sync_bolt_to_gripper()
+            # self._sync_bolt_to_gripper()
 
             current_joint_positions = self.robot.get_joint_positions()
             # 원래 페이즈 변경 코드
@@ -131,23 +144,24 @@ class RobotController:
 
         elif self.task_phase == 8: # 조인트 해제 및 종료
             print(f"task_phase :{self.task_phase} finish up")
+            self.robot.gripper.open()
 
-            if self.joint_created:
-                self._remove_fixed_joint()
+            # if self.joint_created:
+            #     self._remove_fixed_joint()
             
-            self.stage = omni.usd.get_context().get_stage()
-            x1,y1,z1=self.robot.gripper.get_world_pose()[0]  # 함수 실행될 때마다 그리퍼 위치 가져오기
-            bolt_prim = self._get_bolt_prim()  # MOD
-            bolt_pose = self._get_bolt_world_position()  # MOD
-            if bolt_pose is None or bolt_prim is None:
-                return
-            bolt_pose[2] -= 0.05
-            if bolt_prim.IsValid():
-                new_pos = Gf.Vec3d(float(x1), float(y1), float(bolt_pose[2]))
-                bolt_prim.GetAttribute("xformOp:translate").Set(new_pos)
+            # self.stage = omni.usd.get_context().get_stage()
+            # x1,y1,z1=self.robot.gripper.get_world_pose()[0]  # 함수 실행될 때마다 그리퍼 위치 가져오기
+            # bolt_prim = self._get_bolt_prim()  # MOD
+            # bolt_pose = self._get_bolt_world_position()  # MOD
+            # if bolt_pose is None or bolt_prim is None:
+            #     return
+            # bolt_pose[2] -= 0.05
+            # if bolt_prim.IsValid():
+            #     new_pos = Gf.Vec3d(float(x1), float(y1), float(bolt_pose[2]))
+            #     bolt_prim.GetAttribute("xformOp:translate").Set(new_pos)
             
-            # 또 placing position으로 이동 (불필요하면 삭제하기)
-            action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
+            # # 또 placing position으로 이동 (불필요하면 삭제하기)
+            # action = self._apply_rmp_move(self._placing_position, euler_angles_to_quat(np.array([0, np.pi/2, 0])))
 
 
             self.task_phase = 9
@@ -234,4 +248,5 @@ class RobotController:
         xform_cache = UsdGeom.XformCache()  # MOD
         transform = xform_cache.GetLocalToWorldTransform(bolt_prim)
         translation = transform.ExtractTranslation()
-        return np.array([translation[0], translation[1], translation[2]], dtype=np.float64)  # MOD
+        # return np.array([translation[0], translation[1], translation[2]-0.05], dtype=np.float64)  # MOD
+        return np.array([translation[0], translation[1], translation[2]], dtype=np.float64)

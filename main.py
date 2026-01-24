@@ -45,8 +45,7 @@ def main():
 
     timeline = omni.timeline.get_timeline_interface()
     lidar_interface = _range_sensor.acquire_lidar_sensor_interface()
-    placing_position = np.array([-1.25, -0.25047, 1.5])
-
+    placing_position = env.get_box_position('bolt_box', '/World/bolt_box')
     lidar = Lidar(robot_path="/World/UR10/base_link")
     lidar.setup()
     setup_human_semantics(stage, human_path="/World/male")

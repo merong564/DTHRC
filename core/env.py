@@ -1,7 +1,7 @@
 import os
 
 from omni.isaac.kit import SimulationApp
-from pxr import Gf, Usd, Sdf, UsdPhysics, PhysxSchema
+from pxr import Gf, Usd, Sdf, UsdPhysics, PhysxSchema, UsdGeom
 import numpy as np
 from isaacsim.robot.manipulators import SingleManipulator
 from isaacsim.robot.manipulators.grippers import SurfaceGripper
@@ -160,3 +160,17 @@ class EnvManager:
             elif nut_index < nut_count:
                 nut_builders[nut_index].create(self.stage, current_position)
                 nut_index += 1
+
+    def get_box_position(self, name, prim_path):
+        box_prim = self.stage.GetPrimAtPath(prim_path)
+        box = self.world.scene.get_object(name) 
+        if box is not None:
+            pose, _ = box.get_world_poses()
+            return pose[0] if len(pose) > 0 else None
+        
+        xform_cache = UsdGeom.XformCache()  # MOD
+        transform = xform_cache.GetLocalToWorldTransform(box_prim)
+        translation = transform.ExtractTranslation()
+        # 박스 0.5 높은 위치 반환
+        return np.array([translation[0], translation[1], translation[2]+0.5], dtype=np.float64)
+

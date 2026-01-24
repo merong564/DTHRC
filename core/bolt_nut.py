@@ -20,6 +20,8 @@ def _apply_collision(prim):
     if prim is None or not prim.IsValid():
         return
     UsdPhysics.CollisionAPI.Apply(prim)
+    mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
+    mesh_collision.CreateApproximationAttr().Set("convexHull")
     physx_api = PhysxSchema.PhysxCollisionAPI.Apply(prim)
     if hasattr(physx_api, "CreateApproximationAttr"):
         physx_api.CreateApproximationAttr().Set("convexHull")
@@ -247,4 +249,3 @@ class Nut:
     def _next_path(cls, base_path):
         cls._counter += 1
         return f"{base_path}_{cls._counter:02d}"
-
