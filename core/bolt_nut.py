@@ -2,6 +2,8 @@ import math
 
 from pxr import Gf, PhysxSchema, Sdf, UsdGeom, UsdPhysics
 
+from core.utils import find_bolt_prim, get_world_translation
+
 
 def _polygon_radius_at_angle(radius, sides, angle):
     if sides < 3:
@@ -246,3 +248,19 @@ class Nut:
     def _next_path(cls, base_path):
         cls._counter += 1
         return f"{base_path}_{cls._counter:02d}"
+
+
+def create_bolts_and_nut(stage, bolt_prim_path=None, bolt_count=3):
+    bolt_builders = [Bolt() for _ in range(bolt_count)]
+    nut_builder = Nut()
+    bolt_prim = stage.GetPrimAtPath(bolt_prim_path) if bolt_prim_path else find_bolt_prim(stage)
+    if bolt_prim and bolt_prim.IsValid():
+        bolt_pos = get_world_translation(bolt_prim)
+        hex_center = Gf.Vec3d(bolt_pos[0], bolt_pos[1], bolt_pos[2] + nut_builder.z_offset)
+    else:
+        print("Bolt prim not found; placing hexagon at world origin with z offset.")
+        hex_center = Gf.Vec3d(0.0, 0.0, nut_builder.z_offset)
+    nut_builder.create(stage, hex_center)
+    for i, bolt_builder in enumerate(bolt_builders):
+        bolt_base_pos = hex_center + bolt_builder.offset_from_nut + Gf.Vec3d(-0.4 * i, 0.0, 0.0)
+        bolt_builder.create(stage, bolt_base_pos)

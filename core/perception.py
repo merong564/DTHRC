@@ -1,83 +1,44 @@
-from omni.isaac.kit import SimulationApp
-
-# # 1. 시뮬레이션 앱 실행 (가장 먼저 호출되어야 함)
-# simulation_app = SimulationApp({"headless": False})
-
-# from omni.isaac.sensor import Camera
-from isaacsim.sensors.camera import Camera
-from isaacsim.core.api import World
-import omni.isaac.core.utils.prims as prim_utils
-import omni.isaac.core.utils.rotations as rot_utils
 import numpy as np
-from pxr import Gf
 
-class Camera:
-    def __init__(self):
-        from isaacsim.sensors.camera import Camera
-        from isaacsim.core.api import World
-        
-        self.world = World(stage_units_in_meters=1.0)
-        self._initialized = False
-        
-        # 2. 카메라 생성 위치 및 경로 설정
-        self.camera_path = "/World/Camera"
-        base_orientation = rot_utils.euler_angles_to_quat(np.array([-90, 90, 0]), degrees=True)
-        world_x_rot = Gf.Rotation(Gf.Vec3d(1, 0, 0), 30).GetQuat()
-        base_quat = Gf.Quatd(
-            float(base_orientation[0]),
-            float(base_orientation[1]),
-            float(base_orientation[2]),
-            float(base_orientation[3]),
-        )
-        target_quat = world_x_rot * base_quat
-        target_orientation = np.array([target_quat.GetReal(), *target_quat.GetImaginary()])
+from core.utils import bbox_lines_world, get_world_translation
 
-        self.camera = Camera(
-            prim_path=self.camera_path,
-            position=np.array([0.8916, -1.4017, 3.139]), # 로봇이나 작업대 앞 위치
-            frequency=30,
-            resolution=(640, 480),
-            orientation=target_orientation,
-        )
-        
-    def setup_scene(self):
-        # 테스트용 볼트/너트가 놓일 바닥과 조명 추가
-        self.world.scene.add_default_ground_plane()
-        # 카메라 초기화
-        # self.camera.initialize()
-    
-    def initialize(self):
-        """외부(main.py)에서 명시적으로 호출"""
-        if self._initialized:
-            return
-        self.camera.initialize()
-        self._initialized = True
 
-        # # 각도 조정
-        # target_quat = rot_utils.euler_angles_to_quat(np.array([30, 0, 0]), degrees=True)
-
-        # xforms_utils.set_world_pose(
-        #     prim_path=self.camera_path,
-        #     translation=np.array([1.15, 1.6, 3.5]),
-        #     orientation=target_quat
-        # )
-
-    def step(self):
-        """
-        ✔ 시뮬레이션 1 step
-        ✔ 카메라 이미지 1장 반환
-        """
-        self.world.step(render=True)
-
-        if self.world.is_playing():
-            rgba = self.camera.get_rgba()
-            return rgba
-
+def select_bolt_prim_path(stage, camera_sensor, detections, depth_m):
+    bolt_dets = [d for d in detections if d.get("class") == "bolt"]
+    if not bolt_dets:
         return None
-    
-    
+    best_det = max(bolt_dets, key=lambda d: d.get("confidence", 0.0))
+    center = np.array([best_det["center"]], dtype=np.float32)
+    depth = np.array([depth_m], dtype=np.float32)
+    world_point = camera_sensor.get_world_points_from_image_coords(center, depth)[0]
+    candidates = []
+    for prim in stage.Traverse():
+        name = prim.GetName().lower()
+        path = prim.GetPath().pathString.lower()
+        if "bolt" in name or "bolt" in path:
+            candidates.append(prim)
+    if not candidates:
+        return None
+    best_prim = min(
+        candidates,
+        key=lambda p: np.linalg.norm(np.array(get_world_translation(p)) - world_point),
+    )
+    return best_prim.GetPath().pathString
 
-if __name__ == "__main__":
-    tester = Camera()
-    tester.setup_scene()
-    tester.run()
+
+def draw_detection_bboxes(debug_draw, camera_sensor, detections, depth_m):
+    debug_draw.clear_lines()
+    if not detections:
+        return
+    line_starts = []
+    line_ends = []
+    colors = []
+    sizes = []
+    for res in detections:
+        starts, ends = bbox_lines_world(camera_sensor, res["bbox"], depth_m)
+        line_starts.extend(starts)
+        line_ends.extend(ends)
+        color = (0.0, 1.0, 0.0, 1.0) if res["class"] == "bolt" else (1.0, 0.6, 0.0, 1.0)
+        colors.extend([color] * 4)
+        sizes.extend([2.0] * 4)
+    debug_draw.draw_lines(line_starts, line_ends, colors, sizes)
