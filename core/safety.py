@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from pxr import UsdGeom, Gf, Usd, UsdShade
+from pxr import Gf, UsdShade
 
 class SafetyManager:
     def __init__(self, stage, lidar_interface):
@@ -27,7 +27,6 @@ class SafetyManager:
     def get_human_distance(self):
         semantics = self.lidar_interface.get_prim_data(self.lidar_full_path)
         depth = self.lidar_interface.get_linear_depth_data(self.lidar_full_path)
-        print(f'semantics: {semantics}')
         if len(semantics) > 0:
             semantics_np = np.array(semantics)
             depth_np = np.array(depth)
@@ -40,10 +39,10 @@ class SafetyManager:
         self.speed_ratio = 1.0
 
         if dist is not None:
-            if dist < 1.4:
+            if dist < 1.3:
                 self.change_led_color(1.0, 0.0, 0.0)
                 self.speed_ratio = 0.0
-            elif dist < 2.2:
+            elif dist < 1.7:
                 self.change_led_color(1.0, 1.0, 0.0)
                 self.speed_ratio = 0.15
             else:

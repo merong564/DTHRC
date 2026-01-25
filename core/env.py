@@ -158,38 +158,62 @@ class EnvManager:
         bolt_prim_path=None,
         bolt_count=3,
         nut_count=1,
-        position=None,
-        offset=0.45,
+        position=Gf.Vec3d(0.834, 3.0, 1.0),
+        # offset=0.0,
+        spawn_interval=20.0,     # 20초마다 생성
     ):
-        if position is None:
-            base_position = Gf.Vec3d(0.834, 0.0, 1.0)
-        elif isinstance(position, Gf.Vec3d):
-            base_position = position
-        else:
-            base_position = Gf.Vec3d(*position)
+        # if position is None:
+        #     base_position = Gf.Vec3d(0.834, 3.0, 1.0)
+        # elif isinstance(position, Gf.Vec3d):
+        #     base_position = position
+        # else:
+        #     base_position = Gf.Vec3d(*position)
 
-        bolt_builders = [Bolt() for _ in range(bolt_count)]
-        nut_builders = [Nut() for _ in range(nut_count)]
-        bolt_index = 0
-        nut_index = 0
-        total_count = bolt_count + nut_count
+        import omni.kit.app
+        import omni.timeline
 
-        for i in range(total_count):
-            current_position = base_position + Gf.Vec3d(0.0, offset * i, 0.0)
-            prefer_bolt = (i % 2 == 0)
+        self._spawn_base_position = position
+        # self._spawn_offset = offset or 0.0
+        self._spawn_interval = spawn_interval
+        self._spawn_index = 0
+        self._spawn_next_is_bolt = bolt_count >= nut_count
 
-            if prefer_bolt and bolt_index < bolt_count:
-                bolt_builders[bolt_index].create(self.stage, current_position)
-                bolt_index += 1
-            elif not prefer_bolt and nut_index < nut_count:
-                nut_builders[nut_index].create(self.stage, current_position)
-                nut_index += 1
-            elif bolt_index < bolt_count:
-                bolt_builders[bolt_index].create(self.stage, current_position)
-                bolt_index += 1
-            elif nut_index < nut_count:
-                nut_builders[nut_index].create(self.stage, current_position)
-                nut_index += 1
+        timeline = omni.timeline.get_timeline_interface()
+
+        def _spawn_once():
+            current_position = self._spawn_base_position
+            # if self._spawn_offset:
+            #     current_position = self._spawn_base_position + Gf.Vec3d(
+            #         0.0, self._spawn_offset * self._spawn_index, 0.0
+            #     )
+
+            if self._spawn_next_is_bolt:
+                Bolt().create(self.stage, current_position)
+            else:
+                Nut().create(self.stage, current_position)
+
+            self._spawn_next_is_bolt = not self._spawn_next_is_bolt
+            self._spawn_index += 1
+
+        _spawn_once()
+        self._spawn_last_time = timeline.get_current_time()
+
+        def _on_update(_event):
+            if not timeline.is_playing():
+                return
+            current_time = timeline.get_current_time()
+            if current_time < self._spawn_last_time:
+                self._spawn_last_time = current_time
+                return
+            if current_time - self._spawn_last_time < self._spawn_interval:
+                return
+            _spawn_once()
+            self._spawn_last_time = current_time
+
+        app = omni.kit.app.get_app()
+        self._spawn_subscription = app.get_update_event_stream().create_subscription_to_pop(
+            _on_update
+        )
 
     def get_box_position(self, name, prim_path):
         box_prim = self.stage.GetPrimAtPath(prim_path)

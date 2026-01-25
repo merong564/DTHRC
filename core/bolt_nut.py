@@ -150,10 +150,11 @@ class Bolt:
     def __init__(
         self,
         assembly_path="/World/bolt",
+        # 볼트 사이즈 조정
         head_radius=0.05,
-        head_height=0.07,
+        head_height=0.05,
         shaft_radius=0.03,
-        shaft_height=0.15,
+        shaft_height=0.13,
         sides=32,
         offset_from_nut=None,
     ):

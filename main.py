@@ -24,10 +24,10 @@ def _select_best_detection(detections):
 
 
 def main():
-    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_gripper.usd"
+    usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/env_final.usd"
     robot_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/ur10/ur10.usd"
-    bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose/factory_bolt_m20_loose.usd"
-    nut_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_nut_m20_loose/factory_nut_m20_loose_2.usd"
+    # bolt_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_bolt_m20_loose/factory_bolt_m20_loose.usd"
+    # nut_usd_path = "/home/rokey/Desktop/DTHRC/DTHRC/assets/factory_nut_m20_loose/factory_nut_m20_loose_2.usd"
 
     # 1. 환경 관리자 초기화
     env = EnvManager(usd_path, robot_usd_path)
@@ -36,21 +36,23 @@ def main():
     stage = env.stage
     my_world = env.world # EnvManager의 world 가져오기
     my_robot = env.add_robot(robot_usd_path) # EnvManager에서 생성된 로봇 가져오기
-    my_bolt = env.add_bolt(bolt_usd_path)
-    my_nut = env.add_nut(nut_usd_path)
+    # my_bolt = env.add_bolt(bolt_usd_path)
+    # my_nut = env.add_nut(nut_usd_path)
     my_world.reset()
     
     # pick_and_place_gripper.py 실행 시
     bolt_count = 1
     nut_count = 1
-    position = Gf.Vec3d(0.834, 0.0, 1.0)
-    offset = 0.45
+    position = Gf.Vec3d(0.834, 3.0, 1.0)
+    spawn_interval = 100.0
+    # offset = 0.0
     env.create_bolts_and_nuts(
         BOLT_PRIM_PATH,
         bolt_count=bolt_count,
         nut_count=nut_count,
         position=position,
-        offset=offset,
+        spawn_interval=spawn_interval
+        # offset=offset,
     )
 
     timeline = omni.timeline.get_timeline_interface()
@@ -86,8 +88,8 @@ def main():
     timeline.play()
     frame_count = 0
 
-    current_target_obj = my_bolt
-    current_target_type = "bolt"  # pick_and_place_follow.py 실행 시
+    # current_target_obj = my_bolt
+    # current_target_type = "bolt"  # pick_and_place_follow.py 실행 시
 
     # for _ in range(10):
     #     simulation_app.update()
@@ -150,7 +152,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 

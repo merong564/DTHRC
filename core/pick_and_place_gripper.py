@@ -48,10 +48,14 @@ class RobotController:
 
     def control_robot(self, target_bolt_prim_path=None, speed_ratio=1.0):
         if speed_ratio == 0.0:
+            print("[safety] stop mode: human closed")
             # 로봇을 즉시 멈추기 위해 현재 관절 속도를 0으로 설정
             self.robot.set_joint_velocities(np.zeros_like(self.robot.get_joint_velocities()))
             # self._sync_bolt_to_gripper()
             return
+
+        if speed_ratio == 0.15:
+            print("[safety] slow mode: human closed")
         
         # 1. 현재 정보 업데이트
         if target_bolt_prim_path:
@@ -66,13 +70,13 @@ class RobotController:
         # 2. 페이즈별 로직 (State Machine)
         if self.task_phase == 1: # 볼트 접근 감시
             bolt_pose[2] += 0.035    # 볼트보다 0.035 높은 위치를 잡음
-            if bolt_pose[1] <= 1.1:           # 0.5: 로봇이 pick하기 시작하는 시점, 튜닝 필요
-                print("close bolt")
+            if bolt_pose[1] <= 1.1:  #로봇이 pick하기 시작하는 시점, 튜닝 필요
+                print(f"close bolt: {self.bolt_prim_path}")
                 self.task_phase = 2
 
 
         elif self.task_phase == 2: # 볼트로 이동
-            print(f"task_phase :{self.task_phase} bolt access")
+            print(f"task_phase :{self.task_phase} {self.bolt_prim_path} access")
             target_pos = self._get_bolt_world_position()  # MOD: target from selected bolt
             if target_pos is None:
                 return
@@ -80,9 +84,10 @@ class RobotController:
             target_ori = euler_angles_to_quat(np.array([0, np.pi/2, 0]))    # 그리퍼가 접근하는 각도
             action = self._apply_rmp_move(target_pos, target_ori, speed_ratio=speed_ratio)    # 로봇이 타겟으로 이동
             dist = np.linalg.norm(ee_pose - bolt_pose)
+            print(f"distance to bolt: {dist}")
 
             # 엔드 이펙터 위치와 볼트 위치가 가까워지면 fixed joint 생성, 다음 페이즈로 이동
-            if dist < 0.18:  # 0.18 튜닝 필요
+            if dist < 0.17:  # 0.17: 볼트가 정지해있는 상황 튜닝 필요
                 print("############### close gripper ###############")
                 self.robot.gripper.close()
                 bolt_pose = self._get_bolt_world_position()
@@ -91,6 +96,7 @@ class RobotController:
                 self.task_phase = 3
 
         elif self.task_phase == 3: # 들어올리기
+            print(f"task_phase :{self.task_phase} {self.bolt_prim_path} bolt up")
             # 매순간 볼트, 엔드 이펙터 위치 가져오기
             bolt_pose = self._get_bolt_world_position()  # MOD
             if bolt_pose is None:
@@ -111,7 +117,7 @@ class RobotController:
                 self.task_phase = 4
         
         elif self.task_phase == 4: # 목표 지점으로 이동
-            print(f"task_phase :{self.task_phase} placing")
+            print(f"task_phase :{self.task_phase} {self.bolt_prim_path} placing")
             bolt_pose = self._get_bolt_world_position()  # MOD
             if bolt_pose is None:
                 return
@@ -129,7 +135,7 @@ class RobotController:
                 self.task_phase = 5
 
         elif self.task_phase == 5: # 조인트 해제 및 종료
-            print(f"task_phase :{self.task_phase} finish up")
+            print(f"task_phase :{self.task_phase} {self.bolt_prim_path} finish up")
             self.robot.gripper.open()
             self.task_phase = 6
 
