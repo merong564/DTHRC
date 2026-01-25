@@ -155,25 +155,17 @@ class EnvManager:
     # 볼트, 너트 자체 제작 함수
     def create_bolts_and_nuts(
         self,
-        bolt_prim_path=None,
         bolt_count=3,
         nut_count=1,
         position=Gf.Vec3d(0.834, 3.0, 1.0),
-        # offset=0.0,
-        spawn_interval=20.0,     # 20초마다 생성
+        spawn_interval=10000.0,     # 20초마다 생성
     ):
-        # if position is None:
-        #     base_position = Gf.Vec3d(0.834, 3.0, 1.0)
-        # elif isinstance(position, Gf.Vec3d):
-        #     base_position = position
-        # else:
-        #     base_position = Gf.Vec3d(*position)
+
 
         import omni.kit.app
         import omni.timeline
 
         self._spawn_base_position = position
-        # self._spawn_offset = offset or 0.0
         self._spawn_interval = spawn_interval
         self._spawn_index = 0
         self._spawn_next_is_bolt = bolt_count >= nut_count
@@ -182,10 +174,6 @@ class EnvManager:
 
         def _spawn_once():
             current_position = self._spawn_base_position
-            # if self._spawn_offset:
-            #     current_position = self._spawn_base_position + Gf.Vec3d(
-            #         0.0, self._spawn_offset * self._spawn_index, 0.0
-            #     )
 
             if self._spawn_next_is_bolt:
                 Bolt().create(self.stage, current_position)
@@ -222,7 +210,7 @@ class EnvManager:
             pose, _ = box.get_world_poses()
             return pose[0] if len(pose) > 0 else None
         
-        xform_cache = UsdGeom.XformCache()  # MOD
+        xform_cache = UsdGeom.XformCache()
         transform = xform_cache.GetLocalToWorldTransform(box_prim)
         translation = transform.ExtractTranslation()
         # 박스 0.5 높은 위치 반환

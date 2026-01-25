@@ -241,7 +241,18 @@ class Nut:
             inner_radius=self.inner_radius,
             inner_sides=self.inner_sides,
         )
-        UsdGeom.XformCommonAPI(xform).SetTranslate(position)
+
+        if isinstance(position, Gf.Vec3d):
+            base_position = position
+        else:
+            base_position = Gf.Vec3d(*position)
+        UsdGeom.XformCommonAPI(xform).SetTranslate(base_position)
+        mesh_prim = stage.GetPrimAtPath(f"{self.prim_path}/hex_mesh")
+        if mesh_prim.IsValid():
+            # Offset mesh so the xform origin sits on the nut top.
+            UsdGeom.XformCommonAPI(mesh_prim).SetTranslate(
+                Gf.Vec3d(0.0, 0.0, -self.height)
+            )
         _apply_rigid_body(xform.GetPrim())
         _apply_collision(stage.GetPrimAtPath(f"{self.prim_path}/hex_mesh"))
         return xform
