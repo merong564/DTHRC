@@ -23,7 +23,7 @@
 | **곽문정** | **지승아** | **이주노** | **진재협** | **이채영**|
 |:------:|:------:|:------:|:------:|:------:
 | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="곽문정" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="진재협" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이주노" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="지승아" width="150"> |<img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이채" width="150"> |
-| 프로젝트 총괄 | pick & place | safety | YOLO | YOLO |
+| PL | pick & place | safety | YOLO | YOLO |
 | [GitHub](https://github.com/merong564) | [GitHub](https://github.com/seounga) | [GitHub](https://github.com/dlwnsh925) | [GitHub](https://github.com/comport98) | [GitHub](https://github.com/yichaeyoung) |
 
 
