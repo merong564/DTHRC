@@ -55,6 +55,7 @@ Isaac Sim 확장 및 물리 엔진과 연동된 Python 환경에서 프로젝트
 ```bash
 cd ~/Desktop/DTHRC/DTHRC
 ./python.sh /home/rokey/Desktop/DTHRC/DTHRC/main.py
+```
 
 # 4. 폴더 구조
 
