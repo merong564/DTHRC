@@ -16,15 +16,15 @@
 로봇의 **안전 대응(감속/정지)** 과 **작업 효율(부품 전달)** 을 동시에 확보하는 것을 목표로 합니다.
 
 ### 1.2 개발 기간
- - 2026.01.19 ~ 2026.01.26 (7일)
+ - 2026.01.16 ~ 2026.01.26 (10일)
 
 # 2. Team Members
   
-| **곽문정** | **진재협** | **이주노** | **지승아** | **이채영**|
+| **곽문정** | **지승아** | **이주노** | **진재협** | **이채영**|
 |:------:|:------:|:------:|:------:|:------:
 | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="곽문정" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="진재협" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이주노" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="지승아" width="150"> |<img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이채" width="150"> |
-| 프로젝트 총괄 | FE | BE | AI | 비전인 |
-| [GitHub](https://github.com/merong564) | [GitHub](https://github.com/jinjh210) | [GitHub](https://github.com/dlwnsh925) | [GitHub](https://github.com/seounga) | [GitHub](https://github.com/yichaeyoung) |
+| 프로젝트 총괄 | pick & place | safety | YOLO | YOLO |
+| [GitHub](https://github.com/merong564) | [GitHub](https://github.com/seounga) | [GitHub](https://github.com/dlwnsh925) | [GitHub](https://github.com/comport98) | [GitHub](https://github.com/yichaeyoung) |
 
 
 # 3. 실행 가이드
