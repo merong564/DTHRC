@@ -3,18 +3,17 @@ sys.path.insert(0, '/home/rokey/Desktop/DTHRC/DTHRC/utils')
 
 import numpy as np
 from omni.isaac.core.utils.rotations import euler_angles_to_quat
-from pxr import Sdf, UsdPhysics, Gf, UsdGeom  # MOD: use UsdGeom for bolt prim pose
+from pxr import UsdGeom
 import omni.kit.commands
-from omni.physx import get_physx_interface
 from rmpflow_controller import RMPFlowController
 
 
 class RobotController:
-    def __init__(self, world, robot,placing_position, bolt_prim_path="/World/Bolt"):  # MOD: allow YOLO-selected bolt prim
+    def __init__(self, world, robot,placing_position, bolt_prim_path="/World/Bolt"):
         self.world = world
         self.robot =self.world.scene.get_object("my_ur10")
-        self.bolt_prim_path = bolt_prim_path  # MOD: track bolt prim path from YOLO
-        self.bolt = self.world.scene.get_object("my_bolt") if bolt_prim_path == "/World/Bolt" else None  # MOD
+        self.bolt_prim_path = bolt_prim_path 
+        self.bolt = self.world.scene.get_object("my_bolt") if bolt_prim_path == "/World/Bolt" else None
         self.my_controller = None
         self.articulation_controller = None
         print("bolt goood")
@@ -33,7 +32,7 @@ class RobotController:
         self.task_phase = 1
         self.joint_created = False
         try: 
-            self._placing_position = placing_position # 볼트 박스 위치 np.array([-1.25, -0.25047, 1.5])
+            self._placing_position = placing_position
         except Exception as e:
             print(f"no place position: {e}")
             
@@ -49,8 +48,8 @@ class RobotController:
             return
         if bolt_prim_path == self.bolt_prim_path:
             return
-        self.bolt_prim_path = bolt_prim_path  # MOD: update target bolt from YOLO
-        self.bolt = self.world.scene.get_object("my_bolt") if bolt_prim_path == "/World/Bolt" else None  # MOD
+        self.bolt_prim_path = bolt_prim_path
+        self.bolt = self.world.scene.get_object("my_bolt") if bolt_prim_path == "/World/Bolt" else None
         print(f"target bolt prim path: {self.bolt_prim_path}")
 
     def control_robot(self, target_bolt_prim_path=None, speed_ratio=1.0):
@@ -58,7 +57,6 @@ class RobotController:
             print("[safety] stop mode: human closed")
             # 로봇을 즉시 멈추기 위해 현재 관절 속도를 0으로 설정
             self.robot.set_joint_velocities(np.zeros_like(self.robot.get_joint_velocities()))
-            # self._sync_bolt_to_gripper()
             return
 
         if speed_ratio == 0.15:
@@ -66,25 +64,18 @@ class RobotController:
         
         # 1. 현재 정보 업데이트
         if target_bolt_prim_path:
-            self.set_bolt_prim_path(target_bolt_prim_path)  # MOD
+            self.set_bolt_prim_path(target_bolt_prim_path)
         ee_pose, _ = self.robot.gripper.get_world_pose()
-        bolt_pose = self._get_bolt_world_position()  # MOD: use YOLO-selected bolt prim
+        bolt_pose = self._get_bolt_world_position()
         if bolt_pose is None:
-            print("bolt prim not ready")  # MOD
+            print("bolt prim not ready")
             return
         print(bolt_pose)
         
         # 2. 페이즈별 로직 (State Machine)
-        if self.task_phase == 1: # 볼트 접근 감시
-            bolt_pose[2] += 0.035    # 볼트보다 0.035 높은 위치를 잡음
-            if bolt_pose[1] <= 1.1:  #로봇이 pick하기 시작하는 시점, 튜닝 필요
-                print(f"close bolt: {self.bolt_prim_path}")
-                self.task_phase = 2
-
-
-        elif self.task_phase == 2: # 볼트로 이동
+        if self.task_phase == 1: # 볼트로 이동
             print(f"task_phase :{self.task_phase} {self.bolt_prim_path} access")
-            target_pos = self._get_bolt_world_position()  # MOD: target from selected bolt
+            target_pos = self._get_bolt_world_position()
             if target_pos is None:
                 return
 
@@ -98,14 +89,14 @@ class RobotController:
                 print("############### close gripper ###############")
                 self.robot.gripper.close()
                 bolt_pose = self._get_bolt_world_position()
-                self.bolt_pose_up = np.array([bolt_pose[0], bolt_pose[1], bolt_pose[2]+0.5])  # 기존 볼트 위치보다 0.3m 위까지 올리기 위한 위치 저장
+                self.bolt_pose_up = np.array([bolt_pose[0], bolt_pose[1], bolt_pose[2]+0.5])  # 기존 볼트 위치보다 0.5m 위까지 올리기 위한 위치 저장
 
-                self.task_phase = 3
+                self.task_phase = 2
 
-        elif self.task_phase == 3: # 들어올리기
+        elif self.task_phase == 2: # 들어올리기
             print(f"task_phase :{self.task_phase} {self.bolt_prim_path} bolt up")
             # 매순간 볼트, 엔드 이펙터 위치 가져오기
-            bolt_pose = self._get_bolt_world_position()  # MOD
+            bolt_pose = self._get_bolt_world_position()
             if bolt_pose is None:
                 return
             ee_pose = self.robot.gripper.get_world_pose()[0]
@@ -114,16 +105,15 @@ class RobotController:
             
             if ee_pose[2] > self.bolt_pose_up[2]:   # 로봇팔 위치가 1.5를 넘으면 다음 페이즈로 이동
                 self.my_controller.reset()      ###### 추가 ########
-                self.task_phase = 3.5
-            
-            ## 원래 코드
+                self.task_phase = 3
+
             current_joint_positions = self.robot.get_joint_positions()
             
             if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
                 self.my_controller.reset()
-                self.task_phase = 3.5
+                self.task_phase = 3
 
-        elif self.task_phase == 3.5: # 목표 지점 이동 전 중간 위치
+        elif self.task_phase == 3: # 목표 지점 이동 전 중간 위치
             print(f"task_phase :{self.task_phase} {self.bolt_prim_path} mid move")
             if self._move_to_initial_position(speed_ratio):
                 self.my_controller.reset()
@@ -131,7 +121,7 @@ class RobotController:
         
         elif self.task_phase == 4: # 목표 지점으로 이동
             print(f"task_phase :{self.task_phase} {self.bolt_prim_path} placing")
-            bolt_pose = self._get_bolt_world_position()  # MOD
+            bolt_pose = self._get_bolt_world_position()
             if bolt_pose is None:
                 return
             
@@ -139,7 +129,6 @@ class RobotController:
 
             current_joint_positions = self.robot.get_joint_positions()
 
-            # 원래 페이즈 변경 코드
             if np.all(np.abs(current_joint_positions[:6] - action.joint_positions) < 0.001):
                 self.my_controller.reset()
                 self.task_phase = 5
@@ -150,13 +139,13 @@ class RobotController:
         elif self.task_phase == 5: # 조인트 해제 및 종료
             print(f"task_phase :{self.task_phase} {self.bolt_prim_path} finish up")
             self.robot.gripper.open()
-            self.task_phase = 5.5
+            self.task_phase = 6
 
-        elif self.task_phase == 5.5: # 중간 위치로 복귀 후 다음 pick
+        elif self.task_phase == 6: # 중간 위치로 복귀 후 다음 pick
             print(f"task_phase :{self.task_phase} {self.bolt_prim_path} return home")
             if self._move_to_initial_position(speed_ratio):
                 self.my_controller.reset()
-                self.task_phase = 6
+                self.task_phase = 7
 
     # 로봇이 target으로 이동하는 함수
     def _apply_rmp_move(self, pos, ori, speed_ratio=1.0):
@@ -194,7 +183,7 @@ class RobotController:
     def _get_bolt_prim(self):
         if not self.bolt_prim_path:
             return None
-        bolt_prim = self.stage.GetPrimAtPath(self.bolt_prim_path)  # MOD
+        bolt_prim = self.stage.GetPrimAtPath(self.bolt_prim_path)
         if not bolt_prim.IsValid():
             return None
         return bolt_prim
@@ -206,8 +195,7 @@ class RobotController:
         bolt_prim = self._get_bolt_prim()
         if bolt_prim is None:
             return None
-        xform_cache = UsdGeom.XformCache()  # MOD
+        xform_cache = UsdGeom.XformCache()
         transform = xform_cache.GetLocalToWorldTransform(bolt_prim)
         translation = transform.ExtractTranslation()
-        # return np.array([translation[0], translation[1], translation[2]-0.05], dtype=np.float64)  # MOD
         return np.array([translation[0], translation[1], translation[2]], dtype=np.float64)

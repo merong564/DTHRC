@@ -175,10 +175,6 @@ class Bolt:
         bolt_xform = UsdGeom.Xform.Define(stage, self.assembly_path)
         xform_api = UsdGeom.XformCommonAPI(bolt_xform)
         xform_api.SetTranslate(position)
-        # 볼트 180도 회전하고 싶을 경우 위 한줄 주석, 아래 세 줄 주석 해제
-        # xform_api.SetTranslate(position)
-        # xform_api.SetRotate((180.0, 0.0, 0.0), UsdGeom.XformCommonAPI.RotationOrderXYZ)
-        # _apply_rigid_body(bolt_xform.GetPrim())
         _apply_rigid_body(bolt_xform.GetPrim())
 
         head_mesh = _create_prism_mesh(
@@ -248,7 +244,7 @@ class Nut:
         UsdGeom.XformCommonAPI(xform).SetTranslate(base_position)
         mesh_prim = stage.GetPrimAtPath(f"{self.prim_path}/hex_mesh")
         if mesh_prim.IsValid():
-            # Offset mesh so the xform origin sits on the nut top.
+            # 너트 위로 Xform 이동
             UsdGeom.XformCommonAPI(mesh_prim).SetTranslate(
                 Gf.Vec3d(0.0, 0.0, -self.height)
             )
