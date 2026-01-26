@@ -4,8 +4,7 @@
 - ROKEY 부트캠프 6기 E1조 '심봤다' 팀의 프로젝트 레포지토리입니다.
 
 # 1. 프로젝트 개요
-🔹 개발 목적
-
+### 1.1 개발 목적
 산업 현장에서 사람과 로봇이 협업할 때 발생할 수 있는 안전 리스크를
 디지털 트윈 환경(Isaac Sim)에서 재현하고,
 
@@ -15,16 +14,16 @@ RMPflow 기반 경로 최적화**
 를 결합하여
 로봇의 **안전 대응(감속/정지)** 과 **작업 효율(부품 전달)** 을 동시에 확보하는 것을 목표로 합니다.
 
-🔹 개발 기간
+### 1.2 개발 기간
+ - 2026.01.19 ~ 2026.01.26 (7일)
 
-2026.01.19 ~ 2026.01.26 (7일)
 # 2. Team Members
   
 | **곽문정** | **진재협** | **이주노** | **지승아** | **이채영**|
 |:------:|:------:|:------:|:------:|:------:
 | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="곽문정" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="진재협" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이주노" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="지승아" width="150"> |<img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이채" width="150"> |
 | 프로젝트 총괄 | FE | BE | AI | 비전인 |
-| [GitHub](https://github.com/merong564) | [GitHub](https://github.com/yichaeyoung) | [GitHub](https://github.com/yichaeyoung) | [GitHub](https://github.com/yichaeyoung) | [GitHub](https://github.com/yichaeyoung) |
+| [GitHub](https://github.com/merong564) | [GitHub](https://github.com/jinjh210) | [GitHub](https://github.com/dlwnsh925) | [GitHub](https://github.com/seounga) | [GitHub](https://github.com/yichaeyoung) |
 
 
 # 3. 실행 가이드
@@ -53,6 +52,7 @@ cd ~/isaacsim
 Isaac Sim 확장 및 물리 엔진과 연동된 Python 환경에서 프로젝트를 실행합니다.
 
 ```bash
+git clone -b develop https://github.com/merong564/DTHRC.git
 cd ~/Desktop/DTHRC/DTHRC
 ./python.sh /home/rokey/Desktop/DTHRC/DTHRC/main.py
 ```
@@ -77,7 +77,6 @@ project/
 │   └── rmpflow_controller.py       # RMPflow 모션 컨트롤러
 ├── main.py                         # 전체 시뮬레이션 실행 엔트리
 └── README.md
-
 ```
 
 # 5. 주요 기능
@@ -93,8 +92,8 @@ project/
  - Sim2Real 데이터 확장을 통한 환경 변화 대응
 
 ### 5.3 Safety Stack
-LiDAR Semantics 기반 작업자 인식
-거리 기반 3단계 안전 제어
+ - LiDAR Semantics 기반 작업자 인식
+ - 거리 기반 3단계 안전 제어
   - BLUE: 정상 동작
   - YELLOW: 감속
   - RED: 정지
@@ -111,15 +110,17 @@ LiDAR Semantics 기반 작업자 인식
 </div><br>
 
 # 7. 아키텍쳐
-1️⃣ Input
-  LiDAR 센서
-  가상 카메라 이미지
+### 7.1 Input
+ - LiDAR 센서: 작업자(Human)와 로봇 간 거리 측정
+ - Camera 센서: 작업 대상물(Bolt / Nut) 이미지 입력
 
-2️⃣ Process
-  core/safety.py : 작업자 거리 분석
-  core/yolo.py : 작업 대상물 인식
-  utils/rmpflow_controller.py : 최적 경로 계산
+### 7.2 Process
+  - core/safety.py : 작업자 거리 분석
+  - core/yolo.py : 작업 대상물 인식
+  - utils/rmpflow_controller.py : 최적 경로 계산
+  - core/pick_and_place.py : FSM 기반 작업 제어를 수행 (Approach → Grasp → Lift → Place → Release → Return)
+    - 한 사이클이 종료되면 자동으로 객체 전환
 
-3️⃣ Output
-  로봇 관절 속도 제어
-  Surface Gripper 제어
+### 7.3 Output
+  - 로봇 관절 속도 제어
+  - Surface Gripper 제어
