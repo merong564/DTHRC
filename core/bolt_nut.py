@@ -241,7 +241,6 @@ class Nut:
             inner_radius=self.inner_radius,
             inner_sides=self.inner_sides,
         )
-
         if isinstance(position, Gf.Vec3d):
             base_position = position
         else:
@@ -256,7 +255,7 @@ class Nut:
         _apply_rigid_body(xform.GetPrim())
         _apply_collision(stage.GetPrimAtPath(f"{self.prim_path}/hex_mesh"))
         return xform
-
+    
     @classmethod
     def _next_path(cls, base_path):
         cls._counter += 1

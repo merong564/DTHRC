@@ -46,7 +46,6 @@ def _filter_detections_in_center(
             filtered.append(det)
     return filtered
 
-
 def _collect_class_candidates(stage, class_names):   # detection된 클래스명과 stage내 prim 이름/경로 비교
     candidates = {class_name: [] for class_name in class_names}
     for prim in stage.Traverse():
@@ -130,7 +129,6 @@ def select_best_target_prim_path(
         return None, None
     return best["prim_path"], best["class"]
 
-
 def select_target_prim_path(
     stage,
     camera_sensor,
@@ -195,14 +193,11 @@ def draw_detection_bboxes(debug_draw, camera_sensor, detections, depth_m):
     debug_draw.clear_lines()
     if not detections:
         return
-    filtered_detections = _filter_detections_in_center(detections)
-    if not filtered_detections:
-        return
     line_starts = []
     line_ends = []
     colors = []
     sizes = []
-    for res in filtered_detections:
+    for res in detections:
         starts, ends = bbox_lines_world(camera_sensor, res["bbox"], depth_m)
         line_starts.extend(starts)
         line_ends.extend(ends)

@@ -13,7 +13,7 @@ class Camera:
 
         self.camera_path = "/World/Camera"
         base_orientation = rot_utils.euler_angles_to_quat(np.array([-90, 90, 0]), degrees=True)
-        world_x_rot = Gf.Rotation(Gf.Vec3d(1, 0, 0), 35).GetQuat()              # 카메라를 40도 아래로 향하게 설정
+        world_x_rot = Gf.Rotation(Gf.Vec3d(1, 0, 0), 35).GetQuat()              # 카메라를 45도 아래로 향하게 설정
         base_quat = Gf.Quatd(
             float(base_orientation[0]),
             float(base_orientation[1]),
