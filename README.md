@@ -22,7 +22,7 @@
   
 | **곽문정** | **지승아** | **이주노** | **진재협** | **이채영**|
 |:------:|:------:|:------:|:------:|:------:
-| <img src="https://github.com/user-attachments/assets/ed9b3ca5-c579-4bc3-ade7-348904cecfcd" alt="곽문정" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="지승아" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이주노" width="150"> | <img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="진재협" width="150"> |<img src="https://github.com/user-attachments/assets/86b2f0a0-4f78-4295-b312-8b93bfe75287" alt="이채" width="150"> |
+| <img src="https://github.com/user-attachments/assets/ab576294-86aa-4364-bf40-13cbf76a426a" alt="곽문정" width="150"> | <img src="https://github.com/user-attachments/assets/41ed25b8-1832-4552-9f2e-cc96acb3bfee" alt="지승아" width="150"> | <img src="https://github.com/user-attachments/assets/d0da2053-ebf6-42c3-86e2-828177631ba2" alt="이주노" width="150"> | <img src="https://github.com/user-attachments/assets/8db457f6-efca-4a0c-898a-6973ecef9f78" alt="진재협" width="150"> |<img src="https://github.com/user-attachments/assets/bc5b8629-ec6a-4cae-b70f-1c8449b206e7" alt="이채영" width="150"> |
 | PL | pick & place | safety | YOLO | YOLO |
 | [GitHub](https://github.com/merong564) | [GitHub](https://github.com/seounga) | [GitHub](https://github.com/dlwnsh925) | [GitHub](https://github.com/comport98) | [GitHub](https://github.com/yichaeyoung) |
 
