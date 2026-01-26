@@ -84,7 +84,8 @@ project/
 
 ### 5.1  Motion Control (RMPflow & FSM)
  - RMPflow 기반 실시간 경로 생성
- - 접근 → 파지 → 상승 → 배치 → 해제
+ - Approach → Grasp → Lift → Place → Release → Return
+   
     FSM 기반 Pick & Place 공정 제어
 
 ### 5.2 Perception (YOLOv8s)
